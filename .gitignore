@@ -1,0 +1,26 @@
+# Dependencies
+node_modules/
+
+# Frontend
+.next/
+fe/.next/
+
+# Backend
+dist/
+be/dist/
+
+# Foundry
+sc/lib/
+sc/cache/
+sc/out/
+sc/broadcast/
+
+# Env
+.env
+.env.*
+!.env.example
+
+# Reports and logs
+coverage
+.DS_Store
+*.log
