@@ -1,0 +1,19 @@
+{
+  "name": "m2-gamified-agent",
+  "private": true,
+  "packageManager": "pnpm@11.1.1",
+  "scripts": {
+    "dev": "pnpm -r --parallel --filter @m2-gamified-agent/fe --filter @m2-gamified-agent/be run dev",
+    "dev:fe": "pnpm --filter @m2-gamified-agent/fe dev",
+    "dev:be": "pnpm --filter @m2-gamified-agent/be dev",
+    "build": "pnpm -r --filter @m2-gamified-agent/fe --filter @m2-gamified-agent/be run build",
+    "build:fe": "pnpm --filter @m2-gamified-agent/fe build",
+    "build:be": "pnpm --filter @m2-gamified-agent/be build",
+    "build:sc": "forge build --root sc",
+    "start": "pnpm -r --parallel --filter @m2-gamified-agent/fe --filter @m2-gamified-agent/be run start",
+    "start:fe": "pnpm --filter @m2-gamified-agent/fe start",
+    "start:be": "pnpm --filter @m2-gamified-agent/be start",
+    "lint": "pnpm -r --if-present --filter @m2-gamified-agent/fe --filter @m2-gamified-agent/be run lint",
+    "test:sc": "forge test --root sc"
+  }
+}
