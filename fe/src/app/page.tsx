@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ConnectButton } from "@rainbow-me/rainbowkit";
 
 const AGENTS = [
@@ -48,6 +48,9 @@ const AGENTS = [
 
 export default function Home() {
   const scalerRef = useRef<HTMLDivElement>(null);
+  const [visibleMessages, setVisibleMessages] = useState(() =>
+    AGENTS.map((_, index) => index % 2 === 0),
+  );
 
   useEffect(() => {
     function fit() {
@@ -62,6 +65,32 @@ export default function Home() {
     window.addEventListener("resize", fit);
     fit();
     return () => window.removeEventListener("resize", fit);
+  }, []);
+
+  useEffect(() => {
+    const timers: Array<ReturnType<typeof setTimeout>> = [];
+
+    function schedule(index: number, visible: boolean, initial = false) {
+      const delay = initial
+        ? 900 + Math.random() * 3200
+        : visible
+          ? 1800 + Math.random() * 3200
+          : 1200 + Math.random() * 4200;
+
+      timers[index] = setTimeout(() => {
+        const nextVisible = !visible;
+        setVisibleMessages(current =>
+          current.map((messageVisible, messageIndex) =>
+            messageIndex === index ? nextVisible : messageVisible,
+          ),
+        );
+        schedule(index, nextVisible);
+      }, delay);
+    }
+
+    AGENTS.forEach((_, index) => schedule(index, index % 2 === 0, true));
+
+    return () => timers.forEach(clearTimeout);
   }, []);
 
   return (
@@ -338,7 +367,7 @@ export default function Home() {
 
             {/* ===== ARENA AGENTS ===== */}
             <div style={{ position: "absolute", inset: 0 }}>
-              {AGENTS.map((agent) => (
+              {AGENTS.map((agent, index) => (
                 <div
                   key={agent.name}
                   style={{
@@ -363,6 +392,10 @@ export default function Home() {
                       textAlign: "center",
                       boxShadow: "0 4px 0 rgba(40,25,90,.25)",
                       marginBottom: "9px",
+                      opacity: visibleMessages[index] ? 1 : 0,
+                      transform: visibleMessages[index] ? "translateY(0) scale(1)" : "translateY(7px) scale(.94)",
+                      transition: "opacity .32s ease, transform .32s ease",
+                      pointerEvents: "none",
                     }}
                   >
                     <div
