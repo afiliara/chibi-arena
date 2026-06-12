@@ -25,11 +25,23 @@ const TABS   = [
   { id: "start", label: "STARTING", cnt: 1 },
   { id: "open",  label: "OPEN",     cnt: 1 },
 ];
-const AVATARS = ["/blitz.png", "/nova.png", "/byte.png", "/zenith.png"];
-const STRATS  = [
-  { key: "AGGRESSIVE", sub: "high risk" },
-  { key: "BALANCED",   sub: "steady"    },
-  { key: "PATIENT",    sub: "low risk"  },
+const PERSONALITIES = [
+  { label: "AGGRESSIVE",   sprite: "/blitz.png"  },
+  { label: "MOMENTUM",     sprite: "/nova.png"   },
+  { label: "ANALYST",      sprite: "/byte.png"   },
+  { label: "CONSERVATIVE", sprite: "/zenith.png" },
+];
+const TRADING_STYLES = [
+  { label: "Scalper", desc: "Scalper style focuses on short-term price moves with high speed and quick decisions." },
+  { label: "Swing Trader", desc: "Swing Trader rides medium-term trends, holding positions across multiple rounds for bigger swings." },
+  { label: "Trend Follower", desc: "Trend Follower locks onto strong directional momentum and stays in until the trend breaks." },
+  { label: "Contrarian", desc: "Contrarian bets against the crowd, buying fear and selling greed for high-variance plays." },
+];
+const PREVIEW_STATS = [
+  { label: "Profitability", value: 85, icon: "/badge-chart.png", fill: "linear-gradient(90deg,#3ad07a,#2faa55)" },
+  { label: "Risk Tolerance", value: 72, icon: "/nav-shield.png", fill: "linear-gradient(90deg,#ffcf3f,#f0941b)" },
+  { label: "Speed", value: 90, icon: "/nav-watch.png", fill: "linear-gradient(90deg,#6fb0ff,#4f8ae8)" },
+  { label: "Stability", value: 65, icon: "/badge-swords.png", fill: "linear-gradient(90deg,#6fb0ff,#4f8ae8)" },
 ];
 
 /* ─── component ─── */
@@ -39,7 +51,7 @@ export default function LobbyPage() {
   const [modal, setModal]      = useState(false);
   const [avatar, setAvatar]    = useState(0);
   const [strat, setStrat]      = useState(0);
-  const [name, setName]        = useState("VOLTAGE");
+  const [name, setName]        = useState("BLITZ-X");
   const [toast, setToast]      = useState<string | null>(null);
 
   /* scaler — scale down only, page is scrollable */
@@ -84,7 +96,7 @@ export default function LobbyPage() {
                 <span className="font-press" style={{ color: "#fff", fontSize: 16 }}>←</span>
               </button>
               <div className="flex items-center" style={{ gap: 11, ...arenaTagSt }}>
-                <span className="font-press" style={{ fontSize: 16, color: "#fff", letterSpacing: 1, textShadow: "0 2px 0 #2c3f86" }}>ARENAS</span>
+                <span className="font-press" style={{ fontSize: 16, color: "#fff", letterSpacing: 1, textShadow: "0 2px 0 #2c3f86" }}>LOBBY</span>
                 <img src="/nav-leaderboard.png" alt="" style={{ width: 26, height: 26, imageRendering: "pixelated" }} />
               </div>
             </div>
@@ -242,73 +254,119 @@ export default function LobbyPage() {
         <div
           className="flex items-center justify-center"
           onClick={e => { if (e.target === e.currentTarget) setModal(false); }}
-          style={{ position: "fixed", inset: 0, background: "rgba(26,16,60,.62)", backdropFilter: "blur(3px)", zIndex: 50, padding: 20 }}
+          style={{ position: "fixed", inset: 0, background: "rgba(26,16,60,.66)", backdropFilter: "blur(3px)", zIndex: 50, padding: 14, overflow: "auto" }}
         >
-          <div style={{ width: 560, maxWidth: "100%", background: "#f4efe0", border: "5px solid #4a2ea0", borderRadius: 20, overflow: "hidden", boxShadow: "0 14px 0 rgba(74,46,160,.3), 0 26px 50px rgba(20,10,60,.45)" }}>
-            {/* modal header */}
-            <div className="flex items-center justify-between" style={{ background: "linear-gradient(180deg,#8a5fe0 0%,#6a44c9 100%)", padding: "16px 20px", borderBottom: "3px solid #4a2ea0" }}>
-              <div className="flex items-center font-press" style={{ gap: 11, fontSize: 16, color: "#fff", letterSpacing: 1, textShadow: "0 2px 0 #4a2ea0" }}>
-                <img src="/nav-lab.png" alt="" style={{ width: 26, height: 26, imageRendering: "pixelated" }} />
+          <div style={{ width: 700, maxWidth: "100%", margin: "auto", background: "linear-gradient(180deg,#efeafc 0%,#e6def6 100%)", border: "5px solid #4a2ea0", borderRadius: 22, overflow: "hidden", boxShadow: "0 14px 0 rgba(74,46,160,.3),0 26px 50px rgba(20,10,60,.45)" }}>
+            <div style={{ position: "relative", textAlign: "center", background: "linear-gradient(180deg,#9b78ee 0%,#7a52da 55%,#6a44c9 100%)", borderBottom: "4px solid #4a2ea0", padding: "14px 18px 18px" }}>
+              <button onClick={() => setModal(false)} className="font-press" style={{ position: "absolute", top: 12, right: 14, width: 38, height: 38, borderRadius: 10, background: "linear-gradient(180deg,#ff6a5f,#e0463c)", border: "3px solid #fff", color: "#fff", fontSize: 14, cursor: "pointer", boxShadow: "0 3px 0 #9a2820" }}>✕</button>
+              <div className="font-press flex items-center justify-center" style={{ gap: 14, fontSize: 22, color: "#fff", letterSpacing: 1, textShadow: "-2px 0 0 #4a2ea0,2px 0 0 #4a2ea0,0 -2px 0 #4a2ea0,0 2px 0 #4a2ea0,0 5px 0 #3a2080" }}>
+                <img src="/nav-lab.png" alt="" style={{ width: 30, height: 30, imageRendering: "pixelated" }} />
+                CREATE AI AGENT
+                <img src="/nav-lab.png" alt="" style={{ width: 30, height: 30, imageRendering: "pixelated" }} />
+              </div>
+              <div className="font-press inline-flex items-center" style={{ gap: 8, marginTop: 11, background: "rgba(36,24,70,.4)", border: "2px solid rgba(255,255,255,.55)", borderRadius: 10, padding: "5px 16px", fontSize: 11, color: "#ffe27a", letterSpacing: 1 }}>
+                ✦ AI LAB ✦
+              </div>
+            </div>
+
+            <div style={{ display: "grid", gridTemplateColumns: "264px minmax(0,1fr)", gap: 16, padding: 18 }}>
+              <div className="flex flex-col" style={{ gap: 16, minWidth: 0 }}>
+                <div style={modalPanelSt}>
+                  <div style={modalPanelHeadSt}>AGENT PREVIEW</div>
+                  <div style={{ position: "relative", height: 236, overflow: "hidden", background: "url('/cropped_1853x969_top_only.png') center/cover no-repeat" }}>
+                    <div style={{ position: "absolute", left: 14, top: 10, width: 34, height: 74, background: "linear-gradient(180deg,#6a44c9,#4a2ea0)", border: "2px solid #2a1660", clipPath: "polygon(0 0,100% 0,100% 100%,50% 86%,0 100%)", display: "grid", placeItems: "start center", paddingTop: 8 }}>
+                      <span style={{ width: 16, height: 16, background: "#b79bf0", transform: "rotate(45deg)", border: "2px solid #e6d8ff" }} />
+                    </div>
+                    <div style={{ position: "absolute", left: "50%", bottom: 40, transform: "translateX(-50%)", width: 130, height: 34, borderRadius: "50%", background: "radial-gradient(ellipse,#c79bff 0%,rgba(150,90,240,.4) 50%,transparent 72%)", filter: "blur(1px)" }} />
+                    <img src="/platform.png" alt="" style={{ position: "absolute", left: "50%", bottom: 8, transform: "translateX(-50%)", width: "62%", imageRendering: "pixelated", filter: "drop-shadow(0 8px 6px rgba(20,10,50,.45))" }} />
+                    <img src={PERSONALITIES[avatar].sprite} alt="" style={{ position: "absolute", left: "50%", bottom: 78, transform: "translateX(-50%)", width: "42%", imageRendering: "pixelated", filter: "drop-shadow(0 6px 4px rgba(20,10,50,.4))" }} />
+                  </div>
+                </div>
+
+                <div style={modalPanelSt}>
+                  <div style={modalPanelHeadSt}>AGENT STATS (PREVIEW)</div>
+                  <div className="flex flex-col" style={{ padding: "12px 14px", gap: 11 }}>
+                    {PREVIEW_STATS.map(stat => (
+                      <div key={stat.label} className="flex items-center" style={{ gap: 10 }}>
+                        <img src={stat.icon} alt="" style={{ width: 20, height: 20, flexShrink: 0, imageRendering: "pixelated" }} />
+                        <span style={{ fontWeight: 700, fontSize: 11, color: "#4a4070", width: 88, flexShrink: 0 }}>{stat.label}</span>
+                        <span style={{ flex: 1, height: 13, background: "#e2d9c2", border: "2px solid #cfc4a6", borderRadius: 7, overflow: "hidden" }}>
+                          <span style={{ display: "block", height: "100%", width: `${stat.value}%`, borderRadius: 5, background: stat.fill }} />
+                        </span>
+                        <span className="font-press" style={{ fontSize: 9, color: "#3a2e63", width: 20, textAlign: "right" }}>{stat.value}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              <div style={modalPanelSt}>
+                <div style={modalPanelHeadSt}>CONFIGURATION</div>
+                <div className="flex flex-col" style={{ padding: 16, gap: 17 }}>
+                  <div>
+                    <ModalFieldLabel num="1">AGENT NAME</ModalFieldLabel>
+                    <input className="font-press" type="text" maxLength={14} value={name} onChange={e => setName(e.target.value.toUpperCase())} style={{ width: "100%", fontSize: 14, color: "#3a2e63", background: "#fff", border: "3px solid #cfc4a6", borderRadius: 11, padding: "13px 14px", outline: "none" }} />
+                  </div>
+
+                  <div>
+                    <ModalFieldLabel num="2">PERSONALITY</ModalFieldLabel>
+                    <div style={{ display: "grid", gridTemplateColumns: "repeat(4,minmax(0,1fr))", gap: 8 }}>
+                      {PERSONALITIES.map((personality, i) => (
+                        <button key={personality.label} onClick={() => setAvatar(i)} style={{ minWidth: 0, background: avatar === i ? "#fff6e6" : "#fff", border: avatar === i ? "3px solid #f0941b" : "3px solid #d9cfb6", borderRadius: 12, padding: "9px 2px 7px", overflow: "hidden", display: "flex", flexDirection: "column", alignItems: "center", gap: 6, cursor: "pointer", boxShadow: avatar === i ? "0 0 0 3px rgba(240,148,27,.3),0 4px 0 rgba(210,118,10,.3)" : "none", transform: avatar === i ? "translateY(-2px)" : "none" }}>
+                          <span style={{ width: 42, height: 42, borderRadius: 9, background: avatar === i ? "linear-gradient(180deg,#ffe9c2,#ffd592)" : "#f3eee0", display: "grid", placeItems: "center", overflow: "hidden" }}>
+                            <img src={personality.sprite} alt="" style={{ width: 38, height: 38, objectFit: "cover", objectPosition: "center 14%", imageRendering: "pixelated" }} />
+                          </span>
+                          <span className="font-press" style={{ width: "100%", fontSize: 5.5, color: avatar === i ? "#d3760a" : "#7a6f50", lineHeight: 1.35, overflowWrap: "anywhere" }}>{personality.label}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div>
+                    <ModalFieldLabel num="3">TRADING STYLE</ModalFieldLabel>
+                    <div style={{ display: "grid", gridTemplateColumns: "minmax(0,1fr) minmax(0,1fr)", gap: 13, alignItems: "start" }}>
+                      <div className="flex flex-col" style={{ gap: 12 }}>
+                        {TRADING_STYLES.map((style, i) => (
+                          <button key={style.label} onClick={() => setStrat(i)} className="flex items-center" style={{ gap: 10, cursor: "pointer", fontWeight: 700, fontSize: 12, color: strat === i ? "#3a2e63" : "#4a4070", border: 0, background: "transparent", textAlign: "left", padding: 0 }}>
+                            <span style={{ width: 19, height: 19, borderRadius: "50%", border: strat === i ? "3px solid #6a44c9" : "3px solid #b3a98c", background: "#fff", flexShrink: 0, display: "grid", placeItems: "center" }}>
+                              {strat === i && <span style={{ width: 9, height: 9, borderRadius: "50%", background: "#6a44c9" }} />}
+                            </span>
+                            {style.label}
+                          </button>
+                        ))}
+                      </div>
+                      <div style={{ minHeight: 128, background: "#efeafc", border: "3px solid #d6cdf0", borderRadius: 11, padding: "12px 13px", position: "relative", fontWeight: 700, fontSize: 11, lineHeight: 1.55, color: "#6a5fa0" }}>
+                        {TRADING_STYLES[strat].desc}
+                        <span style={{ position: "absolute", right: 9, bottom: 8, color: "#ffb22e", fontSize: 13 }}>✦</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div>
+                    <ModalFieldLabel num="4">STARTING CAPITAL</ModalFieldLabel>
+                    <div className="flex items-center" style={{ gap: 12 }}>
+                      <div className="flex items-center" style={{ gap: 10, background: "#fff", border: "3px solid #cfc4a6", borderRadius: 11, padding: "11px 13px", flex: 1 }}>
+                        <img src="/usdc-logo.png" alt="" style={{ width: 24, height: 24 }} />
+                        <span className="font-press" style={{ fontSize: 12, color: "#3a2e63", flex: 1 }}>100 USDC</span>
+                        <span style={{ fontSize: 17 }}>🔒</span>
+                      </div>
+                      <div style={{ fontWeight: 700, fontSize: 10, color: "#9a8fc0", width: 90, lineHeight: 1.4 }}>Entry fee. Non-refundable.</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div style={{ display: "grid", gridTemplateColumns: "auto 1fr auto", gap: 14, alignItems: "stretch", padding: "0 18px 18px" }}>
+              <button onClick={() => setModal(false)} className="font-press" style={{ fontSize: 12, color: "#fff", letterSpacing: ".5px", background: "linear-gradient(180deg,#9b78ee,#6a44c9)", border: "4px solid #4a2ea0", borderRadius: 13, padding: "0 22px", cursor: "pointer", textShadow: "0 2px 0 #4a2ea0", boxShadow: "0 5px 0 #4a2ea0,inset 0 2px 0 rgba(255,255,255,.3)" }}>CANCEL</button>
+              <button onClick={handleCreate} className="font-press flex items-center justify-center" style={{ gap: 14, fontSize: 16, color: "#fff", letterSpacing: 1, background: "linear-gradient(180deg,#ffd95a 0%,#ffb22e 55%,#f08c12 100%)", border: "4px solid #7a4405", borderRadius: 13, padding: 16, cursor: "pointer", textShadow: "0 2px 0 #c96a08", boxShadow: "0 6px 0 #b86a05,inset 0 3px 0 rgba(255,255,255,.5)" }}>
                 CREATE AGENT
-              </div>
-              <button onClick={() => setModal(false)} className="font-press grid place-items-center" style={{ width: 34, height: 34, borderRadius: 9, background: "rgba(255,255,255,.18)", border: "2px solid rgba(255,255,255,.6)", color: "#fff", fontSize: 13, cursor: "pointer" }}>✕</button>
-            </div>
-
-            {/* modal body */}
-            <div className="flex flex-col" style={{ padding: 22, gap: 20 }}>
-              {/* name */}
-              <div>
-                <div className="font-press" style={{ fontSize: 10, color: "#8a7f5e", letterSpacing: ".5px", marginBottom: 11 }}>AGENT NAME</div>
-                <input
-                  className="font-press"
-                  type="text" maxLength={12} value={name}
-                  onChange={e => setName(e.target.value.toUpperCase())}
-                  style={{ width: "100%", fontSize: 14, color: "#3a2e63", background: "#fff", border: "3px solid #cfc4a6", borderRadius: 11, padding: "13px 14px", outline: "none" }}
-                />
-              </div>
-
-              {/* avatar */}
-              <div>
-                <div className="font-press" style={{ fontSize: 10, color: "#8a7f5e", letterSpacing: ".5px", marginBottom: 11 }}>PICK A FIGHTER</div>
-                <div className="flex" style={{ gap: 12 }}>
-                  {AVATARS.map((sprite, i) => (
-                    <div
-                      key={i} onClick={() => setAvatar(i)}
-                      style={{ width: 70, height: 70, borderRadius: 14, background: "#fff", border: avatar === i ? "3px solid #8a5fe0" : "3px solid #d9cfb6", overflow: "hidden", display: "grid", placeItems: "center", cursor: "pointer", position: "relative", boxShadow: avatar === i ? "0 0 0 3px rgba(138,95,224,.35)" : "none", transform: avatar === i ? "translateY(-3px)" : "none" }}
-                    >
-                      <img src={sprite} alt="" style={{ width: 60, height: 60, objectFit: "cover", objectPosition: "center 16%", imageRendering: "pixelated" }} />
-                      {avatar === i && <span className="font-press" style={{ position: "absolute", top: 2, right: 4, color: "#8a5fe0", fontSize: 10 }}>✓</span>}
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              {/* strategy */}
-              <div>
-                <div className="font-press" style={{ fontSize: 10, color: "#8a7f5e", letterSpacing: ".5px", marginBottom: 11 }}>STRATEGY</div>
-                <div className="flex" style={{ gap: 11 }}>
-                  {STRATS.map((s, i) => (
-                    <div
-                      key={i} onClick={() => setStrat(i)}
-                      className="font-press"
-                      style={{ flex: 1, textAlign: "center", fontSize: 10, color: strat === i ? "#6a44c9" : "#6a6048", background: strat === i ? "#f0eafd" : "#fff", border: strat === i ? "3px solid #8a5fe0" : "3px solid #d9cfb6", borderRadius: 11, padding: "12px 8px", cursor: "pointer", lineHeight: 1.5 }}
-                    >
-                      {s.key}<br />{s.sub}
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-
-            {/* modal footer */}
-            <div style={{ padding: "0 22px 22px" }}>
-              <button
-                onClick={handleCreate}
-                className="font-press"
-                style={{ width: "100%", fontSize: 15, color: "#fff", letterSpacing: 1, background: "linear-gradient(180deg,#ffd95a 0%,#ffb22e 55%,#f08c12 100%)", border: "4px solid #7a4405", borderRadius: 13, padding: 15, cursor: "pointer", textShadow: "0 2px 0 #c96a08", boxShadow: "0 5px 0 #b86a05, inset 0 3px 0 rgba(255,255,255,.5)" }}
-              >
-                CREATE AGENT ▶
+                <img src="/enter-star.png" alt="" style={{ width: 24, height: 24, imageRendering: "pixelated" }} />
               </button>
+              <div className="flex flex-col items-center justify-center" style={{ gap: 5, background: "#f4efe0", border: "4px solid #4a2ea0", borderRadius: 13, padding: "8px 16px", boxShadow: "0 5px 0 rgba(74,46,160,.2)" }}>
+                <span className="font-press" style={{ fontSize: 8, color: "#9a8f6e", letterSpacing: ".5px" }}>ENTRY FEE</span>
+                <span className="font-press flex items-center" style={{ gap: 7, fontSize: 11, color: "#3a2e63" }}><img src="/usdc-logo.png" alt="" style={{ width: 20, height: 20 }} />100 USDC</span>
+              </div>
             </div>
           </div>
         </div>
@@ -334,7 +392,37 @@ export default function LobbyPage() {
   );
 }
 
+function ModalFieldLabel({ num, children }: { num: string; children: React.ReactNode }) {
+  return (
+    <div className="font-press flex items-center" style={{ gap: 9, marginBottom: 10, fontSize: 10, color: "#6a5fa0", letterSpacing: ".5px" }}>
+      <span className="grid place-items-center" style={{ width: 20, height: 20, flexShrink: 0, borderRadius: 6, background: "linear-gradient(180deg,#9b78ee,#6a44c9)", border: "2px solid #4a2ea0", color: "#fff", fontSize: 8, boxShadow: "inset 0 1px 0 rgba(255,255,255,.4)" }}>
+        {num}
+      </span>
+      {children}
+    </div>
+  );
+}
+
 /* ─── shared style objects ─── */
+const modalPanelSt: React.CSSProperties = {
+  minWidth: 0,
+  background: "#f4efe0",
+  border: "3px solid #4a2ea0",
+  borderRadius: 14,
+  overflow: "hidden",
+  boxShadow: "0 5px 0 rgba(74,46,160,.18)",
+};
+const modalPanelHeadSt: React.CSSProperties = {
+  background: "linear-gradient(180deg,#8a5fe0,#6a44c9)",
+  borderBottom: "3px solid #4a2ea0",
+  padding: "9px 14px",
+  fontFamily: '"Press Start 2P", monospace',
+  fontSize: 10,
+  color: "#fff",
+  letterSpacing: 1,
+  textShadow: "0 2px 0 #4a2ea0",
+  textAlign: "center",
+};
 const iconBtnSt: React.CSSProperties = {
   width: 48, height: 46, display: "grid", placeItems: "center",
   background: "linear-gradient(180deg,#7e9fe8 0%,#4f76d8 100%)",
