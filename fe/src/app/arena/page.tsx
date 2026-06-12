@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { ConnectButton } from "@rainbow-me/rainbowkit";
 
 /* ─── data ─── */
 const FEED = [
@@ -125,23 +126,7 @@ export default function ArenaPage() {
               ))}
             </div>
 
-            {/* right: icon buttons */}
-            <div className="flex items-center" style={{ gap: 12 }}>
-              {["/ic-sound.png", "/ic-mail.png", "/ic-help.png", "/ic-gear.png"].map(icon => (
-                <button
-                  key={icon}
-                  style={{
-                    width: 48, height: 46, display: "grid", placeItems: "center",
-                    background: "linear-gradient(180deg,#7e9fe8 0%,#4f76d8 100%)",
-                    border: "3px solid #2c3f86", borderRadius: 12,
-                    boxShadow: "0 4px 0 #2c3f86, inset 0 2px 0 rgba(255,255,255,.35)",
-                    cursor: "pointer",
-                  }}
-                >
-                  <img src={icon} alt="" style={{ width: 26, height: 26, imageRendering: "pixelated" }} />
-                </button>
-              ))}
-            </div>
+            <TopBarConnectWallet />
           </div>
 
           {/* ═══ ROUND BAR ═══ */}
@@ -411,5 +396,30 @@ export default function ArenaPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+function TopBarConnectWallet() {
+  return (
+    <ConnectButton.Custom>
+      {({ account, chain, openAccountModal, openChainModal, openConnectModal, mounted }) => {
+        const connected = mounted && account && chain;
+        return (
+          <button
+            onClick={connected ? (chain.unsupported ? openChainModal : openAccountModal) : openConnectModal}
+            className="font-press flex items-center"
+            style={{
+              gap: 10, fontSize: 11, color: "#fff", letterSpacing: ".5px",
+              background: "linear-gradient(180deg,#9b78ee 0%,#7a52da 60%,#6a44c9 100%)",
+              border: "3px solid #3a2575", borderRadius: 13, padding: "11px 18px",
+              cursor: "pointer", boxShadow: "0 4px 0 #3a2575,inset 0 2px 0 rgba(255,255,255,.35)",
+            }}
+          >
+            <img src="/wallet.PNG" alt="" style={{ width: 26, height: 26 }} />
+            {connected ? (chain.unsupported ? "WRONG NETWORK" : account.displayName) : "CONNECT WALLET"}
+          </button>
+        );
+      }}
+    </ConnectButton.Custom>
   );
 }

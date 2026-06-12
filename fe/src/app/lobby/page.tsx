@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { ConnectButton } from "@rainbow-me/rainbowkit";
 
 /* ─── data ─── */
 const ARENAS = [
@@ -110,13 +111,7 @@ export default function LobbyPage() {
               ))}
             </div>
 
-            <div className="flex items-center" style={{ gap: 12 }}>
-              {["/ic-sound.png", "/ic-mail.png", "/ic-help.png", "/ic-gear.png"].map(icon => (
-                <button key={icon} style={iconBtnSt}>
-                  <img src={icon} alt="" style={{ width: 26, height: 26, imageRendering: "pixelated" }} />
-                </button>
-              ))}
-            </div>
+            <TopBarConnectWallet />
           </div>
 
           {/* ═══ HEADER ROW ═══ */}
@@ -400,6 +395,31 @@ function ModalFieldLabel({ num, children }: { num: string; children: React.React
       </span>
       {children}
     </div>
+  );
+}
+
+function TopBarConnectWallet() {
+  return (
+    <ConnectButton.Custom>
+      {({ account, chain, openAccountModal, openChainModal, openConnectModal, mounted }) => {
+        const connected = mounted && account && chain;
+        return (
+          <button
+            onClick={connected ? (chain.unsupported ? openChainModal : openAccountModal) : openConnectModal}
+            className="font-press flex items-center"
+            style={{
+              gap: 10, fontSize: 11, color: "#fff", letterSpacing: ".5px",
+              background: "linear-gradient(180deg,#9b78ee 0%,#7a52da 60%,#6a44c9 100%)",
+              border: "3px solid #3a2575", borderRadius: 13, padding: "11px 18px",
+              cursor: "pointer", boxShadow: "0 4px 0 #3a2575,inset 0 2px 0 rgba(255,255,255,.35)",
+            }}
+          >
+            <img src="/wallet.PNG" alt="" style={{ width: 26, height: 26 }} />
+            {connected ? (chain.unsupported ? "WRONG NETWORK" : account.displayName) : "CONNECT WALLET"}
+          </button>
+        );
+      }}
+    </ConnectButton.Custom>
   );
 }
 
