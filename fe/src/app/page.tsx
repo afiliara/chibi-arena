@@ -1,103 +1,628 @@
-export default function Home() {
-  return (
-    <main className="relative h-screen overflow-hidden bg-white">
-      <nav className="absolute inset-x-0 top-0 z-20 flex h-[74px] items-center justify-between border-b-2 border-[#dfe6ff] bg-[#fffef8] px-8 text-[#25255f] shadow-[0_2px_0_#b8c7ff]">
-        <div className="flex items-center gap-3">
-          <img
-            alt=""
-            aria-hidden="true"
-            className="h-14 w-11 object-contain [image-rendering:pixelated]"
-            src="/nav-shield.png"
-          />
-          <div className="leading-none">
-            <div className="text-[1.95rem] font-black text-[#1f4c91] [letter-spacing:0] [text-shadow:2px_0_0_#25255f,0_2px_0_#25255f]">
-              AI ARENA
-            </div>
-            <div className="mt-1 text-[0.8rem] font-black text-[#5d5d94]">
-              Trade. Battle. Earn.
-            </div>
-          </div>
-        </div>
+"use client";
 
-        <div className="hidden items-center gap-10 lg:flex">
-          {[
-            ["/nav-watch.png", "WATCH", "LIVE"],
-            ["/nav-lab.png", "AI LAB", "BUILD AGENTS"],
-            ["/nav-stake.png", "STAKE", "SUPPORT AI"],
-            ["/nav-leaderboard.png", "LEADERBOARD", "TOP AGENTS"]
-          ].map(([icon, label, caption]) => (
-            <div className="flex items-center gap-3" key={label}>
+import { useEffect, useRef } from "react";
+
+const AGENTS = [
+  {
+    nameColor: "#f2941b",
+    left: "9.5%",
+    top: "43%",
+    name: "BLITZ",
+    line: "Going LONG on ETH",
+    sprite: "/blitz.png",
+    delay: "0s",
+    spriteH: "150px",
+  },
+  {
+    nameColor: "#e85b9e",
+    left: "28%",
+    top: "40%",
+    name: "NOVA",
+    line: "Overleveraged... this will crash!",
+    sprite: "/nova.png",
+    delay: ".3s",
+    spriteH: "150px",
+  },
+  {
+    nameColor: "#2a8fe0",
+    left: "57.5%",
+    top: "41%",
+    name: "BYTE",
+    line: "Watching BTC liquidity zones.",
+    sprite: "/byte.png",
+    delay: ".6s",
+    spriteH: "132px",
+  },
+  {
+    nameColor: "#8a63e6",
+    left: "74%",
+    top: "42%",
+    name: "ZENITH",
+    line: "Patience is my edge.",
+    sprite: "/zenith.png",
+    delay: ".9s",
+    spriteH: "150px",
+  },
+];
+
+export default function Home() {
+  const scalerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function fit() {
+      const scaler = scalerRef.current;
+      if (!scaler) return;
+      const W = 1200;
+      const avail = window.innerWidth - 32;
+      const s = Math.min(1, avail / W);
+      scaler.style.transform = `scale(${s})`;
+      scaler.style.marginBottom = `${-(1 - s) * scaler.offsetHeight}px`;
+    }
+    window.addEventListener("resize", fit);
+    fit();
+    return () => window.removeEventListener("resize", fit);
+  }, []);
+
+  return (
+    <div
+      style={{
+        fontFamily: "var(--font-silkscreen), monospace",
+        background:
+          "radial-gradient(120% 80% at 50% -10%, #f3f0ff 0%, #e4def6 55%, #d8d0f0 100%)",
+        color: "#1c1640",
+        WebkitFontSmoothing: "none",
+        imageRendering: "pixelated",
+        display: "flex",
+        justifyContent: "center",
+        alignItems: "flex-start",
+        padding: "22px 16px 48px",
+        overflowX: "hidden",
+        minHeight: "100vh",
+      }}
+    >
+      <div ref={scalerRef} style={{ transformOrigin: "top center" }}>
+        <div style={{ width: "1200px" }}>
+          {/* ===== NAV ===== */}
+          <nav
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              padding: "4px 10px 16px",
+            }}
+          >
+            {/* Logo */}
+            <div style={{ display: "flex", alignItems: "center", gap: "13px" }}>
               <img
+                src="/nav-shield.png"
                 alt=""
-                aria-hidden="true"
-                className="h-9 w-9 object-contain [image-rendering:pixelated]"
-                src={icon}
+                style={{ width: "46px", height: "auto", filter: "drop-shadow(0 3px 0 rgba(60,40,110,.25))" }}
               />
-              <div className="leading-none">
-                <div className="text-[1rem] font-black">{label}</div>
-                <div className="mt-1 text-[0.72rem] font-black text-[#606092]">
-                  {caption}
+              <div style={{ display: "flex", flexDirection: "column", gap: "5px" }}>
+                <div
+                  style={{
+                    fontFamily: "var(--font-press-start), monospace",
+                    fontSize: "21px",
+                    color: "#7a52da",
+                    letterSpacing: "1px",
+                    textShadow: "0 2px 0 #fff, 2px 2px 0 rgba(120,90,200,.25)",
+                  }}
+                >
+                  AI ARENA
+                </div>
+                <div style={{ fontSize: "12px", color: "#9a8fc0", letterSpacing: ".5px", fontWeight: 700 }}>
+                  Trade. Battle. Earn.
                 </div>
               </div>
             </div>
-          ))}
-        </div>
 
-        <button
-          className="flex h-12 items-center gap-1.5 rounded-[6px] border-2 border-[#473397] bg-[#7548d9] px-3 text-[1rem] font-black text-white shadow-[inset_0_3px_0_#b792ff,inset_0_-4px_0_#5630ad,0_3px_0_#2d2367] [letter-spacing:0] [text-shadow:0_2px_0_#322261]"
-          type="button"
-        >
-          <img
-            alt=""
-            aria-hidden="true"
-            className="h-7 w-8 object-contain [image-rendering:pixelated]"
-            src="/wallet.PNG"
-          />
-          CONNECT WALLET
-        </button>
-      </nav>
+            {/* Nav Items */}
+            <div style={{ display: "flex", alignItems: "center", gap: "30px" }}>
+              {[
+                { icon: "/nav-watch.png", top: "WATCH", sub: "LIVE" },
+                { icon: "/nav-lab.png", top: "AI LAB", sub: "BUILD AGENTS" },
+                { icon: "/nav-stake.png", top: "STAKE", sub: "SUPPORT AI" },
+                { icon: "/nav-leaderboard.png", top: "LEADERBOARD", sub: "TOP AGENTS" },
+              ].map(({ icon, top, sub }) => (
+                <div
+                  key={top}
+                  style={{ display: "flex", alignItems: "center", gap: "9px", cursor: "pointer" }}
+                >
+                  <img src={icon} alt="" style={{ width: "30px", height: "30px" }} />
+                  <div style={{ display: "flex", flexDirection: "column", gap: "3px" }}>
+                    <span style={{ fontSize: "13px", fontWeight: 700, color: "#3a2e63", letterSpacing: ".5px" }}>
+                      {top}
+                    </span>
+                    <span style={{ fontSize: "9.5px", color: "#9a8fc0", letterSpacing: ".5px" }}>
+                      {sub}
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
 
-      <section
-        className="absolute inset-0 overflow-hidden bg-center bg-no-repeat [background-size:100%_100%]"
-        style={{ backgroundImage: "url('/bg fix.png')" }}
-      >
-        <div className="absolute inset-x-0 bottom-[10vh] mx-auto flex w-[min(92vw,560px)] flex-col items-center">
-          <button
-            className="relative z-10 flex h-20 w-full items-center justify-between rounded-[12px] border-4 border-[#7a3e09] bg-[#f6a814] px-9 font-black text-white shadow-[inset_0_5px_0_#fff06d,inset_0_-9px_0_#d46f08,0_6px_0_#4f2a11,0_11px_0_rgba(0,0,0,0.28)] outline outline-2 outline-[#ffd84a] [font-size:clamp(2rem,7.2vw,3.25rem)] [letter-spacing:0] [text-shadow:0_4px_0_#7b3a15,2px_0_0_#7b3a15,-2px_0_0_#7b3a15,0_-2px_0_#7b3a15] active:translate-y-1 active:shadow-[inset_0_5px_0_#fff06d,inset_0_-7px_0_#d46f08,0_4px_0_#4f2a11,0_8px_0_rgba(0,0,0,0.28)]"
-            type="button"
+            {/* Connect Wallet */}
+            <button
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: "10px",
+                fontFamily: "var(--font-press-start), monospace",
+                fontSize: "11px",
+                color: "#fff",
+                letterSpacing: ".5px",
+                background: "linear-gradient(180deg,#9b78ee 0%, #7a52da 60%, #6a44c9 100%)",
+                border: "3px solid #3a2575",
+                borderRadius: "13px",
+                padding: "11px 18px",
+                cursor: "pointer",
+                boxShadow: "0 4px 0 #3a2575, inset 0 2px 0 rgba(255,255,255,.35)",
+              }}
+            >
+              <img src="/wallet.PNG" alt="" style={{ width: "26px", height: "26px" }} />
+              CONNECT WALLET
+            </button>
+          </nav>
+
+          {/* ===== HERO CARD ===== */}
+          <div
+            style={{
+              position: "relative",
+              width: "100%",
+              aspectRatio: "1536/1024",
+              borderRadius: "22px",
+              overflow: "hidden",
+              border: "5px solid #2e2356",
+              boxShadow:
+                "0 14px 0 rgba(60,40,110,.18), 0 22px 50px rgba(60,40,110,.30), inset 0 0 0 4px rgba(255,255,255,.10)",
+              backgroundImage: "url('/main%20background.original.png')",
+              backgroundSize: "cover",
+              backgroundPosition: "center",
+              backgroundRepeat: "no-repeat",
+            }}
           >
-            <img
-              alt=""
-              aria-hidden="true"
-              className="h-8 w-8 object-contain [image-rendering:pixelated]"
-              src="/enter-star.png"
-            />
-            <span>ENTER ARENA</span>
-            <img
-              alt=""
-              aria-hidden="true"
-              className="h-8 w-8 object-contain [image-rendering:pixelated]"
-              src="/enter-star.png"
-            />
-          </button>
+            {/* Top centered stack */}
+            <div
+              style={{
+                position: "absolute",
+                top: "3.0%",
+                left: "50%",
+                transform: "translateX(-50%)",
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                gap: "14px",
+                width: "100%",
+              }}
+            >
+              {/* Crown + Title */}
+              <div style={{ position: "relative", display: "flex", flexDirection: "column", alignItems: "center" }}>
+                <img
+                  src="/crown.png"
+                  alt=""
+                  style={{
+                    width: "62px",
+                    height: "auto",
+                    marginBottom: "-10px",
+                    filter: "drop-shadow(0 2px 0 rgba(0,0,0,.25))",
+                    position: "relative",
+                    zIndex: 2,
+                  }}
+                />
+                <div
+                  style={{
+                    fontFamily: "var(--font-press-start), monospace",
+                    fontSize: "62px",
+                    color: "#fff",
+                    letterSpacing: "3px",
+                    lineHeight: 1,
+                    textShadow: `
+                      -4px 0 0 #4d2ea3, 4px 0 0 #4d2ea3, 0 -4px 0 #4d2ea3, 0 4px 0 #4d2ea3,
+                      -4px -4px 0 #4d2ea3, 4px -4px 0 #4d2ea3, -4px 4px 0 #4d2ea3, 4px 4px 0 #4d2ea3,
+                      0 9px 0 #3a2080, 0 13px 0 #2a1660, 0 16px 14px rgba(30,15,70,.45)
+                    `,
+                  }}
+                >
+                  AI ARENA
+                </div>
+              </div>
 
-          <div className="relative z-0 -mt-1 flex h-10 w-full items-center justify-center gap-5 rounded-b-[12px] border-2 border-[#211c46]/80 bg-[#070b2f]/70 px-6 pt-1 text-center font-black text-[#f2efff] shadow-[inset_0_2px_0_rgba(255,255,255,0.16),inset_0_-4px_0_rgba(0,0,0,0.22),0_4px_0_rgba(0,0,0,0.24)] backdrop-blur-[1px] [font-size:clamp(0.66rem,1.9vw,0.86rem)] [letter-spacing:0] [text-shadow:0_2px_0_#171421]">
-            <span
-              aria-hidden="true"
-              className="text-[0.8em] text-[#d96cff] [text-shadow:0_0_4px_#ffffff]"
+              {/* Ribbon */}
+              <div
+                style={{
+                  position: "relative",
+                  fontFamily: "var(--font-press-start), monospace",
+                  fontSize: "14px",
+                  color: "#5a3a00",
+                  letterSpacing: ".5px",
+                  background: "linear-gradient(180deg,#ffe27a 0%, #ffcf3f 55%, #f2a91b 100%)",
+                  border: "3px solid #7a4a05",
+                  borderRadius: "7px",
+                  padding: "10px 26px",
+                  boxShadow: "0 4px 0 #b8780c, inset 0 2px 0 rgba(255,255,255,.5)",
+                }}
+              >
+                THE ULTIMATE AI TRADING BATTLE
+                <span
+                  style={{
+                    content: "",
+                    position: "absolute",
+                    top: "50%",
+                    left: "-13px",
+                    width: "18px",
+                    height: "18px",
+                    background: "#e89b14",
+                    border: "3px solid #7a4a05",
+                    transform: "translateY(-50%) rotate(45deg)",
+                    zIndex: -1,
+                    display: "block",
+                  }}
+                />
+                <span
+                  style={{
+                    content: "",
+                    position: "absolute",
+                    top: "50%",
+                    right: "-13px",
+                    width: "18px",
+                    height: "18px",
+                    background: "#e89b14",
+                    border: "3px solid #7a4a05",
+                    transform: "translateY(-50%) rotate(45deg)",
+                    zIndex: -1,
+                    display: "block",
+                  }}
+                />
+              </div>
+
+              {/* Description */}
+              <div
+                style={{
+                  textAlign: "center",
+                  fontWeight: 700,
+                  color: "#fff",
+                  fontSize: "16px",
+                  lineHeight: 1.5,
+                  letterSpacing: ".5px",
+                  textShadow: "0 2px 0 rgba(40,25,90,.85), 0 0 8px rgba(40,25,90,.6)",
+                }}
+              >
+                Watch AI agents compete in real-time
+                <br />
+                powered by real market data.
+              </div>
+
+              {/* Badges */}
+              <div style={{ display: "flex", gap: "14px", marginTop: "2px" }}>
+                {[
+                  { icon: "/badge-chart.png", label: "REAL DATA" },
+                  { icon: "/badge-swords.png", label: "LIVE BATTLES" },
+                  { icon: "/nav-stake.png", label: "REAL REWARDS" },
+                ].map(({ icon, label }) => (
+                  <div
+                    key={label}
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "9px",
+                      background: "linear-gradient(180deg,#7e57e0 0%, #6a44c9 100%)",
+                      border: "3px solid #3a2575",
+                      borderRadius: "10px",
+                      padding: "8px 15px",
+                      fontSize: "12.5px",
+                      fontWeight: 700,
+                      color: "#fff",
+                      letterSpacing: ".5px",
+                      boxShadow: "0 3px 0 #3a2575, inset 0 2px 0 rgba(255,255,255,.25)",
+                    }}
+                  >
+                    <img src={icon} alt="" style={{ width: "22px", height: "22px" }} />
+                    {label}
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* ===== ARENA AGENTS ===== */}
+            <div style={{ position: "absolute", inset: 0 }}>
+              {AGENTS.map((agent) => (
+                <div
+                  key={agent.name}
+                  style={{
+                    position: "absolute",
+                    left: agent.left,
+                    top: agent.top,
+                    display: "flex",
+                    flexDirection: "column",
+                    alignItems: "center",
+                  }}
+                >
+                  {/* Speech Bubble */}
+                  <div
+                    style={{
+                      position: "relative",
+                      background: "#fff",
+                      border: "3px solid #2e2356",
+                      borderRadius: "11px",
+                      padding: "7px 11px 8px",
+                      minWidth: "118px",
+                      maxWidth: "160px",
+                      textAlign: "center",
+                      boxShadow: "0 4px 0 rgba(40,25,90,.25)",
+                      marginBottom: "9px",
+                    }}
+                  >
+                    <div
+                      style={{
+                        fontFamily: "var(--font-press-start), monospace",
+                        fontSize: "10px",
+                        letterSpacing: ".5px",
+                        marginBottom: "5px",
+                        color: agent.nameColor,
+                      }}
+                    >
+                      {agent.name}
+                    </div>
+                    <div
+                      style={{
+                        fontSize: "11px",
+                        fontWeight: 700,
+                        color: "#4a4070",
+                        lineHeight: 1.35,
+                      }}
+                    >
+                      {agent.line}
+                    </div>
+                    {/* Bubble tail outer */}
+                    <span
+                      style={{
+                        position: "absolute",
+                        bottom: "-12px",
+                        left: "50%",
+                        transform: "translateX(-50%)",
+                        display: "block",
+                        width: 0,
+                        height: 0,
+                        borderLeft: "9px solid transparent",
+                        borderRight: "9px solid transparent",
+                        borderTop: "12px solid #2e2356",
+                      }}
+                    />
+                    {/* Bubble tail inner */}
+                    <span
+                      style={{
+                        position: "absolute",
+                        bottom: "-7px",
+                        left: "50%",
+                        transform: "translateX(-50%)",
+                        display: "block",
+                        width: 0,
+                        height: 0,
+                        borderLeft: "6px solid transparent",
+                        borderRight: "6px solid transparent",
+                        borderTop: "8px solid #fff",
+                        zIndex: 1,
+                      }}
+                    />
+                  </div>
+
+                  {/* Agent Sprite */}
+                  <img
+                    src={agent.sprite}
+                    alt={agent.name}
+                    style={{
+                      height: agent.spriteH,
+                      width: "auto",
+                      filter: "drop-shadow(0 7px 5px rgba(20,10,50,.35))",
+                      animation: `bob 2.6s ease-in-out ${agent.delay} infinite`,
+                    }}
+                  />
+                </div>
+              ))}
+            </div>
+
+            {/* ===== ENTER + CONNECT PILL ===== */}
+            <div
+              style={{
+                position: "absolute",
+                bottom: "13.5%",
+                left: "50%",
+                transform: "translateX(-50%)",
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                gap: "12px",
+                width: "100%",
+              }}
             >
-              ◆
-            </span>
-            <span>CONNECT WALLET TO START YOUR JOURNEY</span>
-            <span
-              aria-hidden="true"
-              className="text-[0.8em] text-[#d96cff] [text-shadow:0_0_4px_#ffffff]"
+              <button
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "16px",
+                  fontFamily: "var(--font-press-start), monospace",
+                  fontSize: "26px",
+                  color: "#fff",
+                  letterSpacing: "1px",
+                  background: "linear-gradient(180deg,#ffd95a 0%, #ffb22e 55%, #f08c12 100%)",
+                  border: "4px solid #7a4405",
+                  borderRadius: "15px",
+                  padding: "16px 40px",
+                  cursor: "pointer",
+                  textShadow: "0 3px 0 #c96a08",
+                  boxShadow:
+                    "0 7px 0 #b86a05, 0 13px 20px rgba(60,30,0,.35), inset 0 3px 0 rgba(255,255,255,.5)",
+                }}
+              >
+                <img
+                  src="/enter-star.png"
+                  alt=""
+                  style={{ width: "34px", height: "34px", animation: "spin 4s linear infinite" }}
+                />
+                ENTER ARENA
+                <img
+                  src="/enter-star.png"
+                  alt=""
+                  style={{ width: "34px", height: "34px", animation: "spin 4s linear infinite" }}
+                />
+              </button>
+
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "9px",
+                  fontSize: "12.5px",
+                  fontWeight: 700,
+                  color: "#fff",
+                  letterSpacing: ".5px",
+                  background: "rgba(46,35,86,.78)",
+                  border: "2px solid rgba(255,255,255,.35)",
+                  borderRadius: "20px",
+                  padding: "8px 18px",
+                  backdropFilter: "blur(2px)",
+                }}
+              >
+                <span
+                  style={{
+                    width: "9px",
+                    height: "9px",
+                    borderRadius: "50%",
+                    background: "#5fe08a",
+                    boxShadow: "0 0 8px #5fe08a",
+                    display: "inline-block",
+                  }}
+                />
+                CONNECT WALLET TO START YOUR JOURNEY
+              </div>
+            </div>
+
+            {/* ===== STATS BAR ===== */}
+            <div
+              style={{
+                position: "absolute",
+                bottom: "3.2%",
+                left: "50%",
+                transform: "translateX(-50%)",
+                display: "flex",
+                gap: "11px",
+              }}
             >
-              ◆
-            </span>
+              {[
+                {
+                  icon: <span style={{ fontFamily: "var(--font-press-start), monospace", fontSize: "18px", color: "#7a52da" }}>&#9787;</span>,
+                  num: "10,432",
+                  lab: "ACTIVE SPECTATORS",
+                  numColor: "#2e2356",
+                },
+                {
+                  icon: <img src="/badge-swords.png" alt="" style={{ width: "28px", height: "28px" }} />,
+                  num: "248",
+                  lab: "AI AGENTS IN BATTLE",
+                  numColor: "#2e2356",
+                },
+                {
+                  icon: <img src="/nav-stake.png" alt="" style={{ width: "28px", height: "28px" }} />,
+                  num: "125,680",
+                  lab: "TOTAL PRIZE POOL",
+                  numColor: "#e08a12",
+                },
+              ].map(({ icon, num, lab, numColor }) => (
+                <div
+                  key={lab}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "11px",
+                    background: "rgba(255,255,255,.90)",
+                    border: "3px solid #2e2356",
+                    borderRadius: "12px",
+                    padding: "9px 16px",
+                    boxShadow: "0 4px 0 rgba(40,25,90,.22)",
+                  }}
+                >
+                  <div style={{ width: "30px", height: "30px", display: "grid", placeItems: "center" }}>
+                    {icon}
+                  </div>
+                  <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
+                    <span
+                      style={{
+                        fontFamily: "var(--font-press-start), monospace",
+                        fontSize: "15px",
+                        color: numColor,
+                      }}
+                    >
+                      {num}
+                    </span>
+                    <span style={{ fontSize: "10px", fontWeight: 700, color: "#8a7fb0", letterSpacing: ".5px" }}>
+                      {lab}
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* ===== WOODEN SIGN ===== */}
+            <div
+              style={{
+                position: "absolute",
+                right: "2.4%",
+                bottom: "11.5%",
+                background: "linear-gradient(180deg,#c98a4e 0%, #a9692f 100%)",
+                border: "4px solid #6b3f17",
+                borderRadius: "10px",
+                padding: "11px 16px 13px",
+                textAlign: "center",
+                boxShadow: "0 6px 0 #5a3413, inset 0 2px 0 rgba(255,255,255,.25)",
+              }}
+            >
+              {/* Sign nail left */}
+              <span
+                style={{
+                  position: "absolute",
+                  top: "-11px",
+                  left: "14px",
+                  width: "14px",
+                  height: "14px",
+                  borderRadius: "50%",
+                  background: "#3a2356",
+                  border: "2px solid #1c1640",
+                  display: "block",
+                }}
+              />
+              {/* Sign nail right */}
+              <span
+                style={{
+                  position: "absolute",
+                  top: "-11px",
+                  right: "14px",
+                  width: "14px",
+                  height: "14px",
+                  borderRadius: "50%",
+                  background: "#3a2356",
+                  border: "2px solid #1c1640",
+                  display: "block",
+                }}
+              />
+              <div
+                style={{
+                  fontFamily: "var(--font-press-start), monospace",
+                  fontSize: "9px",
+                  color: "#fff5e6",
+                  lineHeight: 1.5,
+                  letterSpacing: ".5px",
+                  textShadow: "0 1px 0 #5a3413",
+                }}
+              >
+                BUILT FOR THE FUTURE
+                <br />
+                OF AI + WEB3
+              </div>
+              <div style={{ fontSize: "13px", color: "#ffd6e3", marginTop: "5px" }}>♥</div>
+            </div>
           </div>
         </div>
-      </section>
-    </main>
+      </div>
+    </div>
   );
 }
