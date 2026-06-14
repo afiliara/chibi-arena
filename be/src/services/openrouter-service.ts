@@ -55,8 +55,8 @@ export class OpenRouterService {
         headers: {
           "Authorization": `Bearer ${config.OPENROUTER_API_KEY}`,
           "Content-Type": "application/json",
-          "HTTP-Referer": "https://m2-gamified-agent.local",
-          "X-Title": "M2 Gamified Agent Backend",
+          "HTTP-Referer": config.OPENROUTER_HTTP_REFERER,
+          "X-Title": config.OPENROUTER_APP_NAME,
         },
         body: JSON.stringify(body),
         signal: controller.signal,

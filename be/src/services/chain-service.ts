@@ -138,6 +138,7 @@ export class ChainService {
         lastJoinedRoundId,
         lastSettledRoundId,
         agentUri,
+        image: metadata.image,
         name: metadata.name ?? `AGENT-${agentId.toString()}`,
         personality: metadata.personality ?? (isHouseAgent ? "HOUSE" : "CUSTOM"),
         tradingStyle: metadata.tradingStyle ?? "Adaptive",
@@ -183,6 +184,7 @@ export class ChainService {
 async function parseAgentMetadata(agentUri: string) {
   const fallback = {
     name: undefined as string | undefined,
+    image: undefined as string | undefined,
     personality: undefined as string | undefined,
     tradingStyle: undefined as string | undefined,
   };
@@ -222,6 +224,7 @@ function extractMetadataFields(payload: { [key: string]: unknown }) {
 
   return {
     name: typeof payload.name === "string" ? payload.name : undefined,
+    image: typeof payload.image === "string" ? payload.image : undefined,
     personality: findAttributeValue(attributes, "Personality"),
     tradingStyle: findAttributeValue(attributes, "Trading Style"),
   };

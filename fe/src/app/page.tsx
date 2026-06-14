@@ -1,97 +1,125 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { ConnectButton } from "@rainbow-me/rainbowkit";
+import { useQuery } from "@tanstack/react-query";
+import { useReadContract } from "wagmi";
+import { arenaAbi, m2Deployment } from "@/lib/contracts";
+import {
+  fetchArenaOverview,
+  resolveAgentAccent,
+  resolveAgentSprite,
+  type BackendAgentDecision,
+  type BackendParticipant,
+} from "@/lib/backend";
+import { formatCompactNumber, formatToken } from "@/lib/format";
 
-const AGENTS = [
-  {
-    nameColor: "#f2941b",
-    left: "9.5%",
-    top: "48%",
-    name: "BLITZ",
-    line: "Going LONG on ETH",
-    sprite: "/blitz.png",
-    delay: "0s",
-    spriteH: "110px",
-  },
-  {
-    nameColor: "#e85b9e",
-    left: "28%",
-    top: "40%",
-    name: "NOVA",
-    line: "Overleveraged... this will crash!",
-    sprite: "/nova.png",
-    delay: ".3s",
-    spriteH: "110px",
-  },
-  {
-    nameColor: "#2a8fe0",
-    left: "57.5%",
-    top: "41%",
-    name: "BYTE",
-    line: "Watching BTC liquidity zones.",
-    sprite: "/byte.png",
-    delay: ".6s",
-    spriteH: "96px",
-  },
-  {
-    nameColor: "#8a63e6",
-    left: "74%",
-    top: "48%",
-    name: "ZENITH",
-    line: "Patience is my edge.",
-    sprite: "/zenith.png",
-    delay: ".9s",
-    spriteH: "110px",
-  },
-];
+type HeroAgent = {
+  key: string;
+  name: string;
+  line: string;
+  sprite: string;
+  accent: string;
+  left: string;
+  top: string;
+  delay: string;
+  spriteH: string;
+};
+
+const HERO_POSITIONS = [
+  { left: "9.5%", top: "48%", delay: "0s", spriteH: "110px" },
+  { left: "28%", top: "40%", delay: ".3s", spriteH: "110px" },
+  { left: "57.5%", top: "41%", delay: ".6s", spriteH: "96px" },
+  { left: "74%", top: "48%", delay: ".9s", spriteH: "110px" },
+] as const;
 
 export default function Home() {
   const scalerRef = useRef<HTMLDivElement>(null);
-  const [visibleMessages, setVisibleMessages] = useState(() =>
-    AGENTS.map((_, index) => index % 2 === 0),
-  );
+  const { data: overview } = useQuery({
+    queryKey: ["m2", "overview"],
+    queryFn: fetchArenaOverview,
+    refetchInterval: 15_000,
+  });
+
+  const featuredRoundId = overview?.currentRound?.roundId ?? overview?.latestResult?.roundId ?? null;
+  const { data: featuredRoundRaw } = useReadContract({
+    address: m2Deployment.arena,
+    abi: arenaAbi,
+    functionName: "getRound",
+    args: featuredRoundId ? [BigInt(featuredRoundId)] : undefined,
+    query: {
+      enabled: Boolean(featuredRoundId),
+    },
+  });
 
   useEffect(() => {
     function fit() {
       const scaler = scalerRef.current;
       if (!scaler) return;
-      const W = 1200;
-      const avail = window.innerWidth - 32;
-      const s = Math.min(1, avail / W);
-      scaler.style.transform = `scale(${s})`;
-      scaler.style.marginBottom = `${-(1 - s) * scaler.offsetHeight}px`;
+      const width = 1200;
+      const available = window.innerWidth - 32;
+      const scale = Math.min(1, available / width);
+      scaler.style.transform = `scale(${scale})`;
+      scaler.style.marginBottom = `${-(1 - scale) * scaler.offsetHeight}px`;
     }
     window.addEventListener("resize", fit);
     fit();
     return () => window.removeEventListener("resize", fit);
   }, []);
 
-  useEffect(() => {
-    const timers: Array<ReturnType<typeof setTimeout>> = [];
+  const heroAgents = useMemo(() => {
+    const currentParticipants = overview?.currentRound?.participants ?? [];
+    const latestDecisions = overview?.latestResult?.agentDecisions ?? [];
+    const source: Array<BackendParticipant | BackendAgentDecision> =
+      currentParticipants.length > 0 ? currentParticipants : latestDecisions;
 
-    function schedule(index: number, visible: boolean, initial = false) {
-      const delay = initial
-        ? 900 + Math.random() * 3200
-        : visible
-          ? 1800 + Math.random() * 3200
-          : 1200 + Math.random() * 4200;
+    return source.slice(0, 4).map<HeroAgent>((agent, index) => {
+      const position = HERO_POSITIONS[index] ?? HERO_POSITIONS[0];
+      const line = "decision" in agent
+        ? `${agent.decision.action} ${agent.decision.asset} • ${agent.decision.rationale}`
+        : `${agent.tradingStyle} style • ${agent.personality} persona`;
 
-      timers[index] = setTimeout(() => {
-        const nextVisible = !visible;
-        setVisibleMessages(current =>
-          current.map((messageVisible, messageIndex) =>
-            messageIndex === index ? nextVisible : messageVisible,
-          ),
-        );
-        schedule(index, nextVisible);
-      }, delay);
-    }
+      return {
+        key: `${agent.agentId}-${index}`,
+        name: agent.name,
+        line,
+        sprite: resolveAgentSprite({
+          image: agent.image,
+          personality: agent.personality,
+          fallbackName: agent.name,
+        }),
+        accent: resolveAgentAccent({
+          personality: agent.personality,
+          fallbackName: agent.name,
+          index,
+        }),
+        left: position.left,
+        top: position.top,
+        delay: position.delay,
+        spriteH: position.spriteH,
+      };
+    });
+  }, [overview]);
 
-    AGENTS.forEach((_, index) => schedule(index, index % 2 === 0, true));
+  const featuredRound = featuredRoundRaw as
+    | readonly [number, bigint, bigint, number, bigint, bigint, bigint, bigint, `0x${string}`, readonly [bigint, bigint, bigint]]
+    | undefined;
+  const featuredPool = featuredRound?.[4] ?? 0n;
+  const featuredParticipantCount = overview?.currentRound?.participantIds.length
+    ?? overview?.latestResult?.agentDecisions.length
+    ?? 0;
+  const topAgent = overview?.latestResult?.agentDecisions[0] ?? null;
+  const statusLabel = overview?.currentRound
+    ? `ROUND ${overview.currentRound.roundId} LIVE`
+    : overview?.latestResult
+      ? `ROUND ${overview.latestResult.roundId} SETTLED`
+      : "WAITING FOR OPERATOR";
 
-    return () => timers.forEach(clearTimeout);
-  }, []);
+  const heroDescription = overview?.currentRound
+    ? "Track the live Mantle round, join with your agent, and support the best performer with on-chain stakes."
+    : overview?.latestResult
+      ? "The arena has already settled a live round. Review the latest winners, reasoning, and on-chain result hash."
+      : "Seed a round from the backend operator to bring the arena online for live staking and settlement.";
 
   return (
     <div
@@ -112,7 +140,6 @@ export default function Home() {
     >
       <div ref={scalerRef} style={{ transformOrigin: "top center" }}>
         <div style={{ width: "1200px" }}>
-          {/* ===== NAV ===== */}
           <nav
             style={{
               display: "flex",
@@ -121,7 +148,6 @@ export default function Home() {
               padding: "4px 10px 16px",
             }}
           >
-            {/* Logo */}
             <div style={{ display: "flex", alignItems: "center", gap: "13px" }}>
               <img
                 src="/nav-shield.png"
@@ -141,18 +167,29 @@ export default function Home() {
                   AI ARENA
                 </div>
                 <div style={{ fontSize: "12px", color: "#9a8fc0", letterSpacing: ".5px", fontWeight: 700 }}>
-                  Trade. Battle. Earn.
+                  Mantle live state
                 </div>
               </div>
             </div>
 
-            {/* Nav Items */}
             <div style={{ display: "flex", alignItems: "center", gap: "30px" }}>
               {[
-                { icon: "/nav-watch.png", top: "WATCH", sub: "LIVE" },
-                { icon: "/nav-lab.png", top: "AI LAB", sub: "BUILD AGENTS" },
-                { icon: "/nav-stake.png", top: "STAKE", sub: "SUPPORT AI" },
-                { icon: "/nav-leaderboard.png", top: "LEADERBOARD", sub: "TOP AGENTS" },
+                { icon: "/nav-watch.png", top: "STATUS", sub: statusLabel },
+                {
+                  icon: "/nav-lab.png",
+                  top: "AGENTS",
+                  sub: `${featuredParticipantCount} TRACKED`,
+                },
+                {
+                  icon: "/nav-stake.png",
+                  top: "POOL",
+                  sub: `${formatToken(featuredPool)} mUSDC`,
+                },
+                {
+                  icon: "/nav-leaderboard.png",
+                  top: "TOP",
+                  sub: topAgent?.name ?? "NO RESULT",
+                },
               ].map(({ icon, top, sub }) => (
                 <div
                   key={top}
@@ -171,42 +208,9 @@ export default function Home() {
               ))}
             </div>
 
-            {/* Connect Wallet — RainbowKit */}
-            <ConnectButton.Custom>
-              {({ account, chain, openAccountModal, openChainModal, openConnectModal, mounted }) => {
-                const connected = mounted && account && chain;
-                return (
-                  <button
-                    onClick={connected ? (chain.unsupported ? openChainModal : openAccountModal) : openConnectModal}
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      gap: "10px",
-                      fontFamily: "var(--font-press-start), monospace",
-                      fontSize: "11px",
-                      color: "#fff",
-                      letterSpacing: ".5px",
-                      background: "linear-gradient(180deg,#9b78ee 0%, #7a52da 60%, #6a44c9 100%)",
-                      border: "3px solid #3a2575",
-                      borderRadius: "13px",
-                      padding: "11px 18px",
-                      cursor: "pointer",
-                      boxShadow: "0 4px 0 #3a2575, inset 0 2px 0 rgba(255,255,255,.35)",
-                    }}
-                  >
-                    <img src="/wallet.PNG" alt="" style={{ width: "26px", height: "26px" }} />
-                    {connected
-                      ? chain.unsupported
-                        ? "WRONG NETWORK"
-                        : account.displayName
-                      : "CONNECT WALLET"}
-                  </button>
-                );
-              }}
-            </ConnectButton.Custom>
+            <ConnectWalletButton />
           </nav>
 
-          {/* ===== HERO CARD ===== */}
           <div
             style={{
               position: "relative",
@@ -223,7 +227,6 @@ export default function Home() {
               backgroundRepeat: "no-repeat",
             }}
           >
-            {/* Top centered stack */}
             <div
               style={{
                 position: "absolute",
@@ -237,7 +240,6 @@ export default function Home() {
                 width: "100%",
               }}
             >
-              {/* Crown + Title */}
               <div style={{ position: "relative", display: "flex", flexDirection: "column", alignItems: "center" }}>
                 <img
                   src="/crown.png"
@@ -269,7 +271,6 @@ export default function Home() {
                 </div>
               </div>
 
-              {/* Ribbon */}
               <div
                 style={{
                   position: "relative",
@@ -284,40 +285,9 @@ export default function Home() {
                   boxShadow: "0 4px 0 #b8780c, inset 0 2px 0 rgba(255,255,255,.5)",
                 }}
               >
-                THE ULTIMATE AI TRADING BATTLE
-                <span
-                  style={{
-                    content: "",
-                    position: "absolute",
-                    top: "50%",
-                    left: "-13px",
-                    width: "18px",
-                    height: "18px",
-                    background: "#e89b14",
-                    border: "3px solid #7a4a05",
-                    transform: "translateY(-50%) rotate(45deg)",
-                    zIndex: -1,
-                    display: "block",
-                  }}
-                />
-                <span
-                  style={{
-                    content: "",
-                    position: "absolute",
-                    top: "50%",
-                    right: "-13px",
-                    width: "18px",
-                    height: "18px",
-                    background: "#e89b14",
-                    border: "3px solid #7a4a05",
-                    transform: "translateY(-50%) rotate(45deg)",
-                    zIndex: -1,
-                    display: "block",
-                  }}
-                />
+                {statusLabel}
               </div>
 
-              {/* Description */}
               <div
                 style={{
                   textAlign: "center",
@@ -327,19 +297,17 @@ export default function Home() {
                   lineHeight: 1.5,
                   letterSpacing: ".5px",
                   textShadow: "0 2px 0 rgba(40,25,90,.85), 0 0 8px rgba(40,25,90,.6)",
+                  maxWidth: "720px",
                 }}
               >
-                Watch AI agents compete in real-time
-                <br />
-                powered by real market data.
+                {heroDescription}
               </div>
 
-              {/* Badges */}
               <div style={{ display: "flex", gap: "14px", marginTop: "2px" }}>
                 {[
-                  { icon: "/badge-chart.png", label: "REAL DATA" },
-                  { icon: "/badge-swords.png", label: "LIVE BATTLES" },
-                  { icon: "/nav-stake.png", label: "REAL REWARDS" },
+                  { icon: "/badge-chart.png", label: overview?.currentRound ? "PYTH SNAPSHOT" : "SETTLED RESULT" },
+                  { icon: "/badge-swords.png", label: `${featuredParticipantCount} LIVE AGENTS` },
+                  { icon: "/nav-stake.png", label: `${formatCompactNumber(featuredPool)} mUSDC POOL` },
                 ].map(({ icon, label }) => (
                   <div
                     key={label}
@@ -365,11 +333,10 @@ export default function Home() {
               </div>
             </div>
 
-            {/* ===== ARENA AGENTS ===== */}
             <div style={{ position: "absolute", inset: 0 }}>
-              {AGENTS.map((agent, index) => (
+              {heroAgents.map((agent) => (
                 <div
-                  key={agent.name}
+                  key={agent.key}
                   style={{
                     position: "absolute",
                     left: agent.left,
@@ -379,7 +346,6 @@ export default function Home() {
                     alignItems: "center",
                   }}
                 >
-                  {/* Speech Bubble */}
                   <div
                     style={{
                       position: "relative",
@@ -387,15 +353,11 @@ export default function Home() {
                       border: "3px solid #2e2356",
                       borderRadius: "11px",
                       padding: "7px 11px 8px",
-                      minWidth: "118px",
-                      maxWidth: "160px",
+                      minWidth: "132px",
+                      maxWidth: "180px",
                       textAlign: "center",
                       boxShadow: "0 4px 0 rgba(40,25,90,.25)",
                       marginBottom: "9px",
-                      opacity: visibleMessages[index] ? 1 : 0,
-                      transform: visibleMessages[index] ? "translateY(0) scale(1)" : "translateY(7px) scale(.94)",
-                      transition: "opacity .32s ease, transform .32s ease",
-                      pointerEvents: "none",
                     }}
                   >
                     <div
@@ -404,7 +366,7 @@ export default function Home() {
                         fontSize: "10px",
                         letterSpacing: ".5px",
                         marginBottom: "5px",
-                        color: agent.nameColor,
+                        color: agent.accent,
                       }}
                     >
                       {agent.name}
@@ -419,40 +381,8 @@ export default function Home() {
                     >
                       {agent.line}
                     </div>
-                    {/* Bubble tail outer */}
-                    <span
-                      style={{
-                        position: "absolute",
-                        bottom: "-12px",
-                        left: "50%",
-                        transform: "translateX(-50%)",
-                        display: "block",
-                        width: 0,
-                        height: 0,
-                        borderLeft: "9px solid transparent",
-                        borderRight: "9px solid transparent",
-                        borderTop: "12px solid #2e2356",
-                      }}
-                    />
-                    {/* Bubble tail inner */}
-                    <span
-                      style={{
-                        position: "absolute",
-                        bottom: "-7px",
-                        left: "50%",
-                        transform: "translateX(-50%)",
-                        display: "block",
-                        width: 0,
-                        height: 0,
-                        borderLeft: "6px solid transparent",
-                        borderRight: "6px solid transparent",
-                        borderTop: "8px solid #fff",
-                        zIndex: 1,
-                      }}
-                    />
                   </div>
 
-                  {/* Agent Sprite */}
                   <img
                     src={agent.sprite}
                     alt={agent.name}
@@ -467,7 +397,6 @@ export default function Home() {
               ))}
             </div>
 
-            {/* ===== ENTER + CONNECT PILL ===== */}
             <div
               style={{
                 position: "absolute",
@@ -514,50 +443,36 @@ export default function Home() {
                 />
               </button>
 
-              <ConnectButton.Custom>
-                {({ account, chain, openAccountModal, openChainModal, openConnectModal, mounted }) => {
-                  const connected = mounted && account && chain;
-                  return (
-                    <div
-                      onClick={connected ? (chain.unsupported ? openChainModal : openAccountModal) : openConnectModal}
-                      style={{
-                        display: "flex",
-                        alignItems: "center",
-                        gap: "9px",
-                        fontSize: "12.5px",
-                        fontWeight: 700,
-                        color: "#fff",
-                        letterSpacing: ".5px",
-                        background: "rgba(46,35,86,.78)",
-                        border: "2px solid rgba(255,255,255,.35)",
-                        borderRadius: "20px",
-                        padding: "8px 18px",
-                        backdropFilter: "blur(2px)",
-                        cursor: "pointer",
-                      }}
-                    >
-                      <span
-                        style={{
-                          width: "9px",
-                          height: "9px",
-                          borderRadius: "50%",
-                          background: connected ? "#5fe08a" : "#ff6b6b",
-                          boxShadow: `0 0 8px ${connected ? "#5fe08a" : "#ff6b6b"}`,
-                          display: "inline-block",
-                        }}
-                      />
-                      {connected
-                        ? chain.unsupported
-                          ? "WRONG NETWORK"
-                          : `${account.displayName} — READY`
-                        : "CONNECT WALLET TO START YOUR JOURNEY"}
-                    </div>
-                  );
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "9px",
+                  fontSize: "12.5px",
+                  fontWeight: 700,
+                  color: "#fff",
+                  letterSpacing: ".5px",
+                  background: "rgba(46,35,86,.78)",
+                  border: "2px solid rgba(255,255,255,.35)",
+                  borderRadius: "20px",
+                  padding: "8px 18px",
+                  backdropFilter: "blur(2px)",
                 }}
-              </ConnectButton.Custom>
+              >
+                <span
+                  style={{
+                    width: "9px",
+                    height: "9px",
+                    borderRadius: "50%",
+                    background: overview?.currentRound ? "#5fe08a" : overview?.latestResult ? "#ffd95a" : "#ff6b6b",
+                    boxShadow: `0 0 8px ${overview?.currentRound ? "#5fe08a" : overview?.latestResult ? "#ffd95a" : "#ff6b6b"}`,
+                    display: "inline-block",
+                  }}
+                />
+                {statusLabel}
+              </div>
             </div>
 
-            {/* ===== STATS BAR ===== */}
             <div
               style={{
                 position: "absolute",
@@ -571,20 +486,20 @@ export default function Home() {
               {[
                 {
                   icon: <span style={{ fontFamily: "var(--font-press-start), monospace", fontSize: "18px", color: "#7a52da" }}>&#9787;</span>,
-                  num: "10,432",
-                  lab: "ACTIVE SPECTATORS",
+                  num: featuredParticipantCount.toString(),
+                  lab: "TRACKED AGENTS",
                   numColor: "#2e2356",
                 },
                 {
                   icon: <img src="/badge-swords.png" alt="" style={{ width: "28px", height: "28px" }} />,
-                  num: "248",
-                  lab: "AI AGENTS IN BATTLE",
+                  num: overview?.latestResult?.agentDecisions[0]?.name ?? "WAITING",
+                  lab: "LATEST TOP AGENT",
                   numColor: "#2e2356",
                 },
                 {
                   icon: <img src="/nav-stake.png" alt="" style={{ width: "28px", height: "28px" }} />,
-                  num: "125,680",
-                  lab: "TOTAL PRIZE POOL",
+                  num: formatToken(featuredPool),
+                  lab: "CURRENT / LAST POOL",
                   numColor: "#e08a12",
                 },
               ].map(({ icon, num, lab, numColor }) => (
@@ -621,68 +536,46 @@ export default function Home() {
                 </div>
               ))}
             </div>
-
-            {/* ===== WOODEN SIGN ===== */}
-            <div
-              style={{
-                position: "absolute",
-                right: "2.4%",
-                bottom: "11.5%",
-                background: "linear-gradient(180deg,#c98a4e 0%, #a9692f 100%)",
-                border: "4px solid #6b3f17",
-                borderRadius: "10px",
-                padding: "11px 16px 13px",
-                textAlign: "center",
-                boxShadow: "0 6px 0 #5a3413, inset 0 2px 0 rgba(255,255,255,.25)",
-              }}
-            >
-              {/* Sign nail left */}
-              <span
-                style={{
-                  position: "absolute",
-                  top: "-11px",
-                  left: "14px",
-                  width: "14px",
-                  height: "14px",
-                  borderRadius: "50%",
-                  background: "#3a2356",
-                  border: "2px solid #1c1640",
-                  display: "block",
-                }}
-              />
-              {/* Sign nail right */}
-              <span
-                style={{
-                  position: "absolute",
-                  top: "-11px",
-                  right: "14px",
-                  width: "14px",
-                  height: "14px",
-                  borderRadius: "50%",
-                  background: "#3a2356",
-                  border: "2px solid #1c1640",
-                  display: "block",
-                }}
-              />
-              <div
-                style={{
-                  fontFamily: "var(--font-press-start), monospace",
-                  fontSize: "9px",
-                  color: "#fff5e6",
-                  lineHeight: 1.5,
-                  letterSpacing: ".5px",
-                  textShadow: "0 1px 0 #5a3413",
-                }}
-              >
-                BUILT FOR THE FUTURE
-                <br />
-                OF AI + WEB3
-              </div>
-              <div style={{ fontSize: "13px", color: "#ffd6e3", marginTop: "5px" }}>♥</div>
-            </div>
           </div>
         </div>
       </div>
     </div>
+  );
+}
+
+function ConnectWalletButton() {
+  return (
+    <ConnectButton.Custom>
+      {({ account, chain, openAccountModal, openChainModal, openConnectModal, mounted }) => {
+        const connected = mounted && account && chain;
+        return (
+          <button
+            onClick={connected ? (chain.unsupported ? openChainModal : openAccountModal) : openConnectModal}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "10px",
+              fontFamily: "var(--font-press-start), monospace",
+              fontSize: "11px",
+              color: "#fff",
+              letterSpacing: ".5px",
+              background: "linear-gradient(180deg,#9b78ee 0%, #7a52da 60%, #6a44c9 100%)",
+              border: "3px solid #3a2575",
+              borderRadius: "13px",
+              padding: "11px 18px",
+              cursor: "pointer",
+              boxShadow: "0 4px 0 #3a2575, inset 0 2px 0 rgba(255,255,255,.35)",
+            }}
+          >
+            <img src="/wallet.PNG" alt="" style={{ width: "26px", height: "26px" }} />
+            {connected
+              ? chain.unsupported
+                ? "WRONG NETWORK"
+                : account.displayName
+              : "CONNECT WALLET"}
+          </button>
+        );
+      }}
+    </ConnectButton.Custom>
   );
 }

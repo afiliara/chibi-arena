@@ -23,13 +23,15 @@ const schedulerService = new SchedulerService(
   runtimeStore,
 );
 
-app.use(cors());
+app.use(cors({
+  origin: config.CORS_ORIGIN === "*" ? true : config.CORS_ORIGIN,
+}));
 app.use(express.json());
 
 app.get("/health", (_req, res) => {
   res.json({
     ok: true,
-    service: "m2-gamified-agent-be",
+    service: config.SERVICE_NAME,
     chainId: config.MANTLE_CHAIN_ID,
     schedulerEnabled: config.SCHEDULER_ENABLED,
   });
@@ -61,16 +63,48 @@ app.get("/round/:roundId/result", async (req, res) => {
     return;
   }
 
+  const enrichedResult = await enrichRoundResult(roundId, result);
   res.json({
     ok: true,
     result: {
-      ...result,
-      roundId: result.roundId.toString(),
-      agentDecisions: result.agentDecisions.map((decision) => ({
+      ...enrichedResult,
+      roundId: enrichedResult.roundId.toString(),
+      agentDecisions: enrichedResult.agentDecisions.map((decision) => ({
         ...decision,
         agentId: decision.agentId.toString(),
       })),
     },
+  });
+});
+
+app.get("/overview", async (_req, res) => {
+  const status = schedulerService.getStatusSnapshot();
+  const currentRound = await schedulerService.getCurrentRoundSummary();
+  const latestSettledRoundId = status.lastSettledRoundId ? BigInt(status.lastSettledRoundId) : null;
+  const latestResult = latestSettledRoundId
+    ? await schedulerService.getStoredRoundResult(latestSettledRoundId)
+    : await schedulerService.getLatestStoredRoundResult();
+  const resolvedSettledRoundId = latestSettledRoundId ?? latestResult?.roundId ?? null;
+  const enrichedLatestResult = latestResult
+    ? await enrichRoundResult(latestResult.roundId, latestResult)
+    : null;
+
+  res.json({
+    ok: true,
+    service: config.SERVICE_NAME,
+    status,
+    currentRound,
+    latestSettledRoundId: resolvedSettledRoundId?.toString() ?? null,
+    latestResult: enrichedLatestResult
+      ? {
+          ...enrichedLatestResult,
+          roundId: enrichedLatestResult.roundId.toString(),
+          agentDecisions: enrichedLatestResult.agentDecisions.map((decision) => ({
+            ...decision,
+            agentId: decision.agentId.toString(),
+          })),
+        }
+      : null,
   });
 });
 
@@ -121,7 +155,7 @@ async function main() {
   schedulerService.start();
 
   app.listen(config.PORT, () => {
-    console.log(`Backend running on http://localhost:${config.PORT}`);
+    console.log(`${config.SERVICE_NAME} running on http://localhost:${config.PORT}`);
   });
 }
 
@@ -133,4 +167,43 @@ function parseRoundId(value: string) {
   } catch {
     throw new Error(`Invalid round id: ${value}`);
   }
+}
+
+async function enrichRoundResult(
+  roundId: bigint,
+  result: Awaited<ReturnType<SchedulerService["getStoredRoundResult"]>> extends infer T
+    ? Exclude<T, null>
+    : never,
+) {
+  const shouldHydrateProfiles = result.agentDecisions.some((decision) =>
+    !decision.image || !decision.personality || !decision.tradingStyle
+  );
+
+  if (!shouldHydrateProfiles) {
+    return result;
+  }
+
+  const profiles = await chainService.getParticipantsWithProfiles(roundId);
+  const profileByAgentId = new Map(
+    profiles.participants.map((participant) => [participant.agentId.toString(), participant]),
+  );
+
+  return {
+    ...result,
+    agentDecisions: result.agentDecisions.map((decision) => {
+      const profile = profileByAgentId.get(decision.agentId.toString());
+      if (!profile) {
+        return decision;
+      }
+
+      return {
+        ...decision,
+        name: decision.name || profile.name,
+        image: decision.image ?? profile.image,
+        personality: decision.personality || profile.personality,
+        tradingStyle: decision.tradingStyle || profile.tradingStyle,
+        isHouseAgent: decision.isHouseAgent ?? profile.isHouseAgent,
+      };
+    }),
+  };
 }

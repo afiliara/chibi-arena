@@ -33,6 +33,7 @@ export type AgentProfile = {
   lastJoinedRoundId: bigint;
   lastSettledRoundId: bigint;
   agentUri: string;
+  image?: string;
   name: string;
   personality: string;
   tradingStyle: string;
@@ -49,6 +50,9 @@ export type AgentRoundResult = {
   agentId: bigint;
   owner: `0x${string}`;
   name: string;
+  image?: string;
+  personality: string;
+  tradingStyle: string;
   isHouseAgent: boolean;
   decision: AgentDecision;
   finalPnlBps: number;
@@ -118,6 +122,7 @@ export type SerializedAgentProfile = {
   lastJoinedRoundId: string;
   lastSettledRoundId: string;
   agentUri: string;
+  image?: string;
   name: string;
   personality: string;
   tradingStyle: string;
@@ -132,6 +137,9 @@ export type SerializedPreparedRoundResult = {
     agentId: string;
     owner: `0x${string}`;
     name: string;
+    image?: string;
+    personality: string;
+    tradingStyle: string;
     isHouseAgent: boolean;
     decision: AgentDecision;
     finalPnlBps: number;

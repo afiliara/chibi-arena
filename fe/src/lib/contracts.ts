@@ -253,4 +253,14 @@ export const arenaAbi = [
     ],
     outputs: [{ name: "payout", type: "uint256" }],
   },
+  {
+    type: "function",
+    stateMutability: "nonpayable",
+    name: "claimCreatorReward",
+    inputs: [
+      { name: "roundId", type: "uint256" },
+      { name: "agentId", type: "uint256" },
+    ],
+    outputs: [{ name: "payout", type: "uint256" }],
+  },
 ] as const satisfies Abi;

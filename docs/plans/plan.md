@@ -5,7 +5,7 @@ Last updated: 2026-06-14
 
 ## Current Focus
 
-`SC live, FE core loop working, backend operator implemented, pending live OpenRouter run and FE settlement sync`
+`SC live, backend operator live, FE wired to SC + BE live data, pending final demo polish`
 
 ## Global Order
 
@@ -27,7 +27,7 @@ Last updated: 2026-06-14
 - [x] Integrasi FE ke ABI dan event contract
 - [x] Review backend operator design spec
 - [x] Implement backend round operator dan battle engine
-- [ ] Sinkronisasi FE live data
+- [x] Sinkronisasi FE live data
 - [ ] Final FE polish untuk demo
 
 ## Notes

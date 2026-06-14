@@ -8,9 +8,19 @@ import "@rainbow-me/rainbowkit/styles.css";
 import type { ReactNode } from "react";
 import { mantleSepolia, mantleSepoliaRpcUrl } from "@/lib/contracts";
 
+function requirePublicEnv(value: string | undefined, name: string) {
+  if (!value) {
+    throw new Error(`Missing required public env: ${name}`);
+  }
+  return value;
+}
+
 const config = getDefaultConfig({
   appName: "AI Arena",
-  projectId: process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID ?? "YOUR_PROJECT_ID",
+  projectId: requirePublicEnv(
+    process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID,
+    "NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID",
+  ),
   chains: [mantleSepolia],
   transports: {
     [mantleSepolia.id]: http(mantleSepoliaRpcUrl),

@@ -1,4 +1,4 @@
-import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdir, readdir, readFile, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 
 import type {
@@ -54,6 +54,9 @@ export class RuntimeStore {
         agentId: decision.agentId.toString(),
         owner: decision.owner,
         name: decision.name,
+        image: decision.image,
+        personality: decision.personality,
+        tradingStyle: decision.tradingStyle,
         isHouseAgent: decision.isHouseAgent,
         decision: decision.decision,
         finalPnlBps: decision.finalPnlBps,
@@ -78,6 +81,9 @@ export class RuntimeStore {
           agentId: BigInt(decision.agentId),
           owner: decision.owner,
           name: decision.name,
+          image: decision.image,
+          personality: decision.personality,
+          tradingStyle: decision.tradingStyle,
           isHouseAgent: decision.isHouseAgent,
           decision: decision.decision,
           finalPnlBps: decision.finalPnlBps,
@@ -91,6 +97,16 @@ export class RuntimeStore {
       }
       throw error;
     }
+  }
+
+  async readLatestRoundResult(): Promise<PreparedRoundResult | null> {
+    const roundIds = await this.listStoredRoundIds();
+    const latestRoundId = roundIds.sort((left, right) => Number(right - left))[0];
+    if (latestRoundId === undefined) {
+      return null;
+    }
+
+    return this.readRoundResult(latestRoundId);
   }
 
   serializeTrackedRound(state: TrackedRoundState): SerializedTrackedRoundState {
@@ -110,6 +126,7 @@ export class RuntimeStore {
         lastJoinedRoundId: participant.lastJoinedRoundId.toString(),
         lastSettledRoundId: participant.lastSettledRoundId.toString(),
         agentUri: participant.agentUri,
+        image: participant.image,
         name: participant.name,
         personality: participant.personality,
         tradingStyle: participant.tradingStyle,
@@ -135,6 +152,7 @@ export class RuntimeStore {
         lastJoinedRoundId: BigInt(participant.lastJoinedRoundId),
         lastSettledRoundId: BigInt(participant.lastSettledRoundId),
         agentUri: participant.agentUri,
+        image: participant.image,
         name: participant.name,
         personality: participant.personality,
         tradingStyle: participant.tradingStyle,
@@ -145,6 +163,22 @@ export class RuntimeStore {
 
   private getRoundResultPath(roundId: bigint) {
     return path.join(this.resultsDir, `round-${roundId.toString()}.json`);
+  }
+
+  private async listStoredRoundIds() {
+    try {
+      const entries = await readdir(this.resultsDir, { withFileTypes: true });
+      return entries
+        .filter((entry) => entry.isFile())
+        .map((entry) => entry.name.match(/^round-(\d+)\.json$/)?.[1] ?? null)
+        .filter((value): value is string => value !== null)
+        .map((value) => BigInt(value));
+    } catch (error) {
+      if (isMissingFileError(error)) {
+        return [];
+      }
+      throw error;
+    }
   }
 }
 

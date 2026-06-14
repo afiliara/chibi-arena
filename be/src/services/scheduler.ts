@@ -26,14 +26,23 @@ export class SchedulerService {
   async boot() {
     await this.runtimeStore.init();
     const persisted = await this.runtimeStore.readState();
-    if (persisted?.activeRound) {
-      this.activeRound = this.runtimeStore.deserializeTrackedRound(persisted.activeRound);
+    if (persisted) {
+      this.activeRound = persisted.activeRound
+        ? this.runtimeStore.deserializeTrackedRound(persisted.activeRound)
+        : null;
       this.status = persisted.status;
       this.lastTickAt = persisted.lastTickAt;
       this.lastSettledRoundId = persisted.lastSettledRoundId ? BigInt(persisted.lastSettledRoundId) : null;
       this.lastError = persisted.lastError;
       this.lastLockTxHash = persisted.lastLockTxHash;
       this.lastSubmitTxHash = persisted.lastSubmitTxHash;
+    }
+
+    if (!this.lastSettledRoundId) {
+      const latestResult = await this.runtimeStore.readLatestRoundResult();
+      if (latestResult) {
+        this.lastSettledRoundId = latestResult.roundId;
+      }
     }
   }
 
@@ -180,6 +189,7 @@ export class SchedulerService {
       participants: this.activeRound.participants.map((participant) => ({
         agentId: participant.agentId.toString(),
         name: participant.name,
+        image: participant.image,
         personality: participant.personality,
         tradingStyle: participant.tradingStyle,
         isHouseAgent: participant.isHouseAgent,
@@ -193,6 +203,10 @@ export class SchedulerService {
 
   async getStoredRoundResult(roundId: bigint) {
     return this.runtimeStore.readRoundResult(roundId);
+  }
+
+  async getLatestStoredRoundResult() {
+    return this.runtimeStore.readLatestRoundResult();
   }
 
   getStatusSnapshot() {
