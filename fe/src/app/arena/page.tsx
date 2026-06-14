@@ -23,6 +23,7 @@ import {
   resolveAgentSprite,
   type BackendAgentDecision,
   type BackendCurrentRound,
+  type BackendPreviewDecision,
 } from "@/lib/backend";
 import { formatCompactNumber, formatCountdown, formatToken } from "@/lib/format";
 
@@ -88,10 +89,11 @@ export default function ArenaPage() {
   const { data: overview } = useQuery({
     queryKey: ["m2", "overview"],
     queryFn: fetchArenaOverview,
-    refetchInterval: 15_000,
+    refetchInterval: 5_000,
   });
 
   const currentRound = overview?.currentRound ?? null;
+  const liveMarketSnapshot = overview?.liveMarketSnapshot ?? null;
   const latestResult = overview?.latestResult ?? null;
   const featuredRoundId = currentRound?.roundId ?? latestResult?.roundId ?? null;
   const featuredRoundIdBigInt = featuredRoundId ? BigInt(featuredRoundId) : undefined;
@@ -170,16 +172,26 @@ export default function ArenaPage() {
   }, []);
 
   const featuredRound = featuredRoundRaw as RoundTuple | undefined;
-  const metadataSource = new Map<string, BackendCurrentRound["participants"][number] | BackendAgentDecision>();
+  const previewDecisionByAgentId = new Map(
+    (currentRound?.previewDecisions ?? []).map((decision) => [decision.agentId, decision] as const),
+  );
+  const metadataSource = new Map<
+    string,
+    BackendCurrentRound["participants"][number] | BackendAgentDecision | BackendPreviewDecision
+  >();
   currentRound?.participants.forEach((participant) => metadataSource.set(participant.agentId, participant));
+  currentRound?.previewDecisions.forEach((decision) => metadataSource.set(decision.agentId, decision));
   latestResult?.agentDecisions.forEach((decision) => metadataSource.set(decision.agentId, decision));
 
   const rows = participantIds.map((agentId, index) => {
     const state = participantStates[index]?.result as RoundAgentStateTuple | undefined;
     const meta = metadataSource.get(agentId.toString());
     const latestDecision = latestResult?.agentDecisions.find((decision) => decision.agentId === agentId.toString());
-    const rank = latestDecision?.rank ?? (state?.[5] && state[5] > 0 ? state[5] : index + 1);
-    const pnlBps = latestDecision?.finalPnlBps ?? (state?.[6] ?? 0);
+    const previewDecision = previewDecisionByAgentId.get(agentId.toString());
+    const rank = latestDecision?.rank
+      ?? previewDecision?.previewRank
+      ?? (state?.[5] && state[5] > 0 ? state[5] : index + 1);
+    const pnlBps = latestDecision?.finalPnlBps ?? previewDecision?.previewPnlBps ?? (state?.[6] ?? 0);
     const personality = "personality" in (meta ?? {}) ? meta?.personality ?? "UNKNOWN" : "UNKNOWN";
     const tradingStyle = "tradingStyle" in (meta ?? {}) ? meta?.tradingStyle ?? "Adaptive" : "Adaptive";
     const name = meta?.name ?? `AGENT #${agentId.toString()}`;
@@ -246,30 +258,6 @@ export default function ArenaPage() {
     !selectedRow.creatorClaimed &&
     selectedRow.creatorReward > 0n,
   );
-
-  async function handleMintTestUsdc() {
-    if (!address || !publicClient) {
-      setActionError("Connect wallet first.");
-      return;
-    }
-
-    try {
-      setActionError(null);
-      setActionStatus("Minting 1,000 mUSDC...");
-      const hash = await writeContractAsync({
-        address: m2Deployment.mockUsdc,
-        abi: mockUsdcAbi,
-        functionName: "mint",
-        args: [address, 1_000n * 10n ** 18n],
-      });
-      await publicClient.waitForTransactionReceipt({ hash });
-      await refetchBalance();
-      setActionStatus("1,000 mUSDC minted to your wallet.");
-    } catch (error) {
-      setActionStatus(null);
-      setActionError(error instanceof Error ? error.message : "Mint failed.");
-    }
-  }
 
   async function handleStake() {
     if (!selectedRow || !address || !publicClient || !featuredRoundIdBigInt) {
@@ -358,7 +346,7 @@ export default function ArenaPage() {
   }
 
   const marketStart = currentRound?.startSnapshot ?? latestResult?.startSnapshot ?? null;
-  const marketEnd = latestResult?.endSnapshot ?? marketStart;
+  const marketEnd = liveMarketSnapshot ?? currentRound?.latestSnapshot ?? latestResult?.endSnapshot ?? marketStart;
   const marketRows = (["BTC", "ETH", "SOL"] as const).map((symbol) => {
     const start = marketStart?.prices[symbol].price ?? 0;
     const end = marketEnd?.prices[symbol].price ?? start;
@@ -405,6 +393,28 @@ export default function ArenaPage() {
         msg: `${participant.tradingStyle} strategy queued • ${participant.personality} persona`,
         time: "TRACKING",
       })) ?? [];
+
+  const activeLiveFeed = latestResult
+    ? liveFeed
+    : currentRound?.previewDecisions.slice(0, 4).map((decision, index) => ({
+        key: `${decision.agentId}-${decision.previewRank}`,
+        agent: decision.name,
+        agentColor: resolveAgentAccent({
+          personality: decision.personality,
+          fallbackName: decision.name,
+          index,
+        }),
+        sprite: resolveAgentSprite({
+          image: decision.image,
+          personality: decision.personality,
+          fallbackName: decision.name,
+        }),
+        msg: `${decision.decision.action} ${decision.decision.asset} • ${decision.decision.rationale}`,
+        time: decision.previewPnlBps >= 0
+          ? `LIVE +${(decision.previewPnlBps / 100).toFixed(2)}%`
+          : `LIVE ${(decision.previewPnlBps / 100).toFixed(2)}%`,
+      }))
+      ?? liveFeed;
 
   return (
     <div
@@ -497,8 +507,8 @@ export default function ArenaPage() {
           <div style={{ display: "grid", gridTemplateColumns: "300px 1fr 300px", gap: 16, alignItems: "stretch" }}>
             <Panel title="LIVE FEED">
               <div style={{ overflowY: "auto", flex: 1 }}>
-                {liveFeed.map((feed, index) => (
-                  <div key={feed.key} className="flex" style={{ gap: 12, padding: "13px 15px", borderBottom: index < liveFeed.length - 1 ? "2px solid #e2d9c2" : "none" }}>
+                {activeLiveFeed.map((feed, index) => (
+                    <div key={feed.key} className="flex" style={{ gap: 12, padding: "13px 15px", borderBottom: index < activeLiveFeed.length - 1 ? "2px solid #e2d9c2" : "none" }}>
                     <div style={{ width: 46, height: 46, flexShrink: 0, borderRadius: "50%", background: "#fff", border: "3px solid #d9cfb6", overflow: "hidden", display: "grid", placeItems: "center" }}>
                       <img src={feed.sprite} alt="" style={{ width: 42, height: 42, objectFit: "cover", objectPosition: "center 18%", imageRendering: "pixelated" }} />
                     </div>
@@ -627,23 +637,6 @@ export default function ArenaPage() {
                   style={secondaryActionButton(canClaimCreator)}
                 >
                   CLAIM CREATOR REWARD
-                </button>
-                <button
-                  onClick={handleMintTestUsdc}
-                  disabled={isPending || !isConnected}
-                  className="font-press"
-                  style={{
-                    width: "100%", display: "block", textAlign: "center",
-                    background: "linear-gradient(180deg,#ffd95a 0%,#ffb22e 55%,#f08c12 100%)",
-                    border: "3px solid #7a4405", borderRadius: 11,
-                    padding: 11, fontSize: 10, color: "#fff",
-                    letterSpacing: ".5px", cursor: isConnected ? "pointer" : "not-allowed",
-                    textShadow: "0 2px 0 #c96a08",
-                    boxShadow: "0 4px 0 #b86a05, inset 0 2px 0 rgba(255,255,255,.35)",
-                    opacity: isConnected ? 1 : 0.55,
-                  }}
-                >
-                  MINT 1,000 mUSDC
                 </button>
                 {canClaimStaker ? (
                   <div className="font-silk" style={{ fontSize: 10, color: "#2faa55", fontWeight: 700 }}>

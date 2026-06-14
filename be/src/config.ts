@@ -28,6 +28,7 @@ const envSchema = z.object({
   PYTH_TIMEOUT_MS: z.coerce.number().int().positive(),
   SCHEDULER_ENABLED: z.string().transform((value) => value === "true"),
   SCHEDULER_POLL_INTERVAL_MS: z.coerce.number().int().positive(),
+  DECISION_PREVIEW_INTERVAL_MS: z.coerce.number().int().positive(),
   ROUND_SETTLEMENT_RETRY_LIMIT: z.coerce.number().int().positive(),
   RUNTIME_DIR: z.string().min(1),
 });

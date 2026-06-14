@@ -3,6 +3,7 @@ import { keccak256, stringToHex } from "viem";
 import type {
   AgentDecision,
   AgentProfile,
+  AgentRoundPreview,
   AgentRoundResult,
   MarketSnapshot,
   PreparedRoundResult,
@@ -12,42 +13,47 @@ import { OpenRouterService } from "./openrouter-service.js";
 export class BattleEngine {
   constructor(private readonly openRouterService: OpenRouterService) {}
 
+  async prepareLivePreview(input: {
+    roundId: bigint;
+    participants: AgentProfile[];
+    startSnapshot: MarketSnapshot;
+    currentSnapshot: MarketSnapshot;
+  }): Promise<AgentRoundPreview[]> {
+    const ranked = await this.rankAgentDecisions({
+      roundId: input.roundId,
+      participants: input.participants,
+      snapshotForReasoning: input.currentSnapshot,
+      startSnapshot: input.startSnapshot,
+      pnlSnapshot: input.currentSnapshot,
+    });
+
+    return ranked.map((entry) => ({
+      agentId: entry.agentId,
+      owner: entry.owner,
+      name: entry.name,
+      image: entry.image,
+      personality: entry.personality,
+      tradingStyle: entry.tradingStyle,
+      isHouseAgent: entry.isHouseAgent,
+      decision: entry.decision,
+      previewPnlBps: entry.finalPnlBps,
+      previewRank: entry.rank,
+    }));
+  }
+
   async prepareRoundResult(input: {
     roundId: bigint;
     participants: AgentProfile[];
     startSnapshot: MarketSnapshot;
     endSnapshot: MarketSnapshot;
   }): Promise<PreparedRoundResult> {
-    const agentDecisions = await Promise.all(
-      input.participants.map(async (participant) => {
-        const decision = await this.openRouterService.generateDecision(participant, input.roundId, input.endSnapshot);
-        return {
-          participant,
-          decision,
-          finalPnlBps: computePnlBps(decision, input.startSnapshot, input.endSnapshot),
-        };
-      }),
-    );
-
-    const ranked = [...agentDecisions]
-      .sort((left, right) => {
-        if (left.finalPnlBps !== right.finalPnlBps) {
-          return right.finalPnlBps - left.finalPnlBps;
-        }
-        return left.participant.agentId < right.participant.agentId ? -1 : 1;
-      })
-      .map<AgentRoundResult>((entry, index) => ({
-        agentId: entry.participant.agentId,
-        owner: entry.participant.owner,
-        name: entry.participant.name,
-        image: entry.participant.image,
-        personality: entry.participant.personality,
-        tradingStyle: entry.participant.tradingStyle,
-        isHouseAgent: entry.participant.isHouseAgent,
-        decision: entry.decision,
-        finalPnlBps: entry.finalPnlBps,
-        rank: index + 1,
-      }));
+    const ranked = await this.rankAgentDecisions({
+      roundId: input.roundId,
+      participants: input.participants,
+      snapshotForReasoning: input.endSnapshot,
+      startSnapshot: input.startSnapshot,
+      pnlSnapshot: input.endSnapshot,
+    });
 
     const generatedAt = new Date().toISOString();
     const resultHash = buildResultHash({
@@ -80,6 +86,49 @@ export class BattleEngine {
       agentDecisions: ranked,
       resultHash,
     };
+  }
+
+  private async rankAgentDecisions(input: {
+    roundId: bigint;
+    participants: AgentProfile[];
+    snapshotForReasoning: MarketSnapshot;
+    startSnapshot: MarketSnapshot;
+    pnlSnapshot: MarketSnapshot;
+  }): Promise<AgentRoundResult[]> {
+    const agentDecisions = await Promise.all(
+      input.participants.map(async (participant) => {
+        const decision = await this.openRouterService.generateDecision(
+          participant,
+          input.roundId,
+          input.snapshotForReasoning,
+        );
+        return {
+          participant,
+          decision,
+          finalPnlBps: computePnlBps(decision, input.startSnapshot, input.pnlSnapshot),
+        };
+      }),
+    );
+
+    return [...agentDecisions]
+      .sort((left, right) => {
+        if (left.finalPnlBps !== right.finalPnlBps) {
+          return right.finalPnlBps - left.finalPnlBps;
+        }
+        return left.participant.agentId < right.participant.agentId ? -1 : 1;
+      })
+      .map<AgentRoundResult>((entry, index) => ({
+        agentId: entry.participant.agentId,
+        owner: entry.participant.owner,
+        name: entry.participant.name,
+        image: entry.participant.image,
+        personality: entry.participant.personality,
+        tradingStyle: entry.participant.tradingStyle,
+        isHouseAgent: entry.participant.isHouseAgent,
+        decision: entry.decision,
+        finalPnlBps: entry.finalPnlBps,
+        rank: index + 1,
+      }));
   }
 }
 

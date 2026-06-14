@@ -15,6 +15,7 @@ export class SchedulerService {
   private lastLockTxHash: `0x${string}` | null = null;
   private lastSubmitTxHash: `0x${string}` | null = null;
   private isTickRunning = false;
+  private lastPreviewRefreshAt = 0;
 
   constructor(
     private readonly chainService: ChainService,
@@ -89,6 +90,7 @@ export class SchedulerService {
           return this.getStatusSnapshot();
         }
 
+        await this.refreshActiveRoundLiveState();
         this.status = "tracking";
         this.lastError = null;
         await this.persistState();
@@ -197,6 +199,20 @@ export class SchedulerService {
         remainingBond: participant.remainingBond.toString(),
       })),
       startSnapshot: this.activeRound.startSnapshot,
+      latestSnapshot: this.activeRound.latestSnapshot,
+      previewUpdatedAt: this.activeRound.previewUpdatedAt,
+      previewDecisions: this.activeRound.previewDecisions.map((decision) => ({
+        agentId: decision.agentId.toString(),
+        owner: decision.owner,
+        name: decision.name,
+        image: decision.image,
+        personality: decision.personality,
+        tradingStyle: decision.tradingStyle,
+        isHouseAgent: decision.isHouseAgent,
+        decision: decision.decision,
+        previewPnlBps: decision.previewPnlBps,
+        previewRank: decision.previewRank,
+      })),
       runtimeStatus: this.status,
     };
   }
@@ -238,7 +254,11 @@ export class SchedulerService {
       participantIds: [...participants.participantIds],
       participants: participants.participants,
       startSnapshot,
+      latestSnapshot: startSnapshot,
+      previewDecisions: [],
+      previewUpdatedAt: null,
     };
+    await this.refreshActiveRoundLiveState({ forcePreview: true });
     this.status = "tracking";
     this.lastError = null;
     await this.persistState();
@@ -280,5 +300,34 @@ export class SchedulerService {
       lastSubmitTxHash: this.lastSubmitTxHash,
     };
     await this.runtimeStore.writeState(state);
+  }
+
+  private async refreshActiveRoundLiveState(options: { forcePreview?: boolean } = {}) {
+    if (!this.activeRound) {
+      return;
+    }
+
+    const latestSnapshot = await this.marketService.getLatestSnapshot();
+    this.activeRound.latestSnapshot = latestSnapshot;
+
+    const now = Date.now();
+    const shouldRefreshPreview = options.forcePreview
+      || this.activeRound.previewDecisions.length === 0
+      || now - this.lastPreviewRefreshAt >= config.DECISION_PREVIEW_INTERVAL_MS;
+
+    if (!shouldRefreshPreview) {
+      return;
+    }
+
+    const previewDecisions = await this.battleEngine.prepareLivePreview({
+      roundId: this.activeRound.roundId,
+      participants: this.activeRound.participants,
+      startSnapshot: this.activeRound.startSnapshot,
+      currentSnapshot: latestSnapshot,
+    });
+
+    this.activeRound.previewDecisions = previewDecisions;
+    this.activeRound.previewUpdatedAt = new Date().toISOString();
+    this.lastPreviewRefreshAt = now;
   }
 }

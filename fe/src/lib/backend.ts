@@ -43,6 +43,24 @@ export type BackendParticipant = {
   remainingBond: string;
 };
 
+export type BackendPreviewDecision = {
+  agentId: string;
+  owner: `0x${string}`;
+  name: string;
+  image?: string;
+  personality: string;
+  tradingStyle: string;
+  isHouseAgent: boolean;
+  decision: {
+    action: "LONG" | "SHORT" | "HOLD";
+    asset: "BTC" | "ETH" | "SOL";
+    confidence: number;
+    rationale: string;
+  };
+  previewPnlBps: number;
+  previewRank: number;
+};
+
 export type BackendCurrentRound = {
   roundId: string;
   stakeOpenAt: number;
@@ -51,6 +69,9 @@ export type BackendCurrentRound = {
   participantIds: string[];
   participants: BackendParticipant[];
   startSnapshot: BackendMarketSnapshot;
+  latestSnapshot: BackendMarketSnapshot;
+  previewUpdatedAt: string | null;
+  previewDecisions: BackendPreviewDecision[];
   runtimeStatus: BackendStatusSnapshot["status"];
 };
 
@@ -86,6 +107,7 @@ export type BackendOverview = {
   service: string;
   status: BackendStatusSnapshot;
   currentRound: BackendCurrentRound | null;
+  liveMarketSnapshot: BackendMarketSnapshot | null;
   latestSettledRoundId: string | null;
   latestResult: BackendRoundResult | null;
 };

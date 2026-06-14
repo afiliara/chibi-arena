@@ -59,6 +59,19 @@ export type AgentRoundResult = {
   rank: number;
 };
 
+export type AgentRoundPreview = {
+  agentId: bigint;
+  owner: `0x${string}`;
+  name: string;
+  image?: string;
+  personality: string;
+  tradingStyle: string;
+  isHouseAgent: boolean;
+  decision: AgentDecision;
+  previewPnlBps: number;
+  previewRank: number;
+};
+
 export type RoundSnapshot = {
   roundId: bigint;
   status: number;
@@ -81,6 +94,9 @@ export type TrackedRoundState = {
   participantIds: bigint[];
   participants: AgentProfile[];
   startSnapshot: MarketSnapshot;
+  latestSnapshot: MarketSnapshot;
+  previewDecisions: AgentRoundPreview[];
+  previewUpdatedAt: string | null;
 };
 
 export type PreparedRoundResult = {
@@ -110,6 +126,22 @@ export type SerializedTrackedRoundState = {
   participantIds: string[];
   participants: SerializedAgentProfile[];
   startSnapshot: MarketSnapshot;
+  latestSnapshot?: MarketSnapshot;
+  previewDecisions?: SerializedAgentRoundPreview[];
+  previewUpdatedAt?: string | null;
+};
+
+export type SerializedAgentRoundPreview = {
+  agentId: string;
+  owner: `0x${string}`;
+  name: string;
+  image?: string;
+  personality: string;
+  tradingStyle: string;
+  isHouseAgent: boolean;
+  decision: AgentDecision;
+  previewPnlBps: number;
+  previewRank: number;
 };
 
 export type SerializedAgentProfile = {

@@ -4,6 +4,7 @@ import path from "node:path";
 import type {
   PersistedRuntimeState,
   PreparedRoundResult,
+  SerializedAgentRoundPreview,
   SerializedPreparedRoundResult,
   SerializedTrackedRoundState,
   TrackedRoundState,
@@ -132,6 +133,9 @@ export class RuntimeStore {
         tradingStyle: participant.tradingStyle,
       })),
       startSnapshot: state.startSnapshot,
+      latestSnapshot: state.latestSnapshot,
+      previewDecisions: state.previewDecisions.map((decision) => serializePreviewDecision(decision)),
+      previewUpdatedAt: state.previewUpdatedAt,
     };
   }
 
@@ -158,6 +162,9 @@ export class RuntimeStore {
         tradingStyle: participant.tradingStyle,
       })),
       startSnapshot: state.startSnapshot,
+      latestSnapshot: state.latestSnapshot ?? state.startSnapshot,
+      previewDecisions: (state.previewDecisions ?? []).map((decision) => deserializePreviewDecision(decision)),
+      previewUpdatedAt: state.previewUpdatedAt ?? null,
     };
   }
 
@@ -180,6 +187,36 @@ export class RuntimeStore {
       throw error;
     }
   }
+}
+
+function serializePreviewDecision(decision: TrackedRoundState["previewDecisions"][number]): SerializedAgentRoundPreview {
+  return {
+    agentId: decision.agentId.toString(),
+    owner: decision.owner,
+    name: decision.name,
+    image: decision.image,
+    personality: decision.personality,
+    tradingStyle: decision.tradingStyle,
+    isHouseAgent: decision.isHouseAgent,
+    decision: decision.decision,
+    previewPnlBps: decision.previewPnlBps,
+    previewRank: decision.previewRank,
+  };
+}
+
+function deserializePreviewDecision(decision: SerializedAgentRoundPreview): TrackedRoundState["previewDecisions"][number] {
+  return {
+    agentId: BigInt(decision.agentId),
+    owner: decision.owner,
+    name: decision.name,
+    image: decision.image,
+    personality: decision.personality,
+    tradingStyle: decision.tradingStyle,
+    isHouseAgent: decision.isHouseAgent,
+    decision: decision.decision,
+    previewPnlBps: decision.previewPnlBps,
+    previewRank: decision.previewRank,
+  };
 }
 
 function isMissingFileError(error: unknown) {

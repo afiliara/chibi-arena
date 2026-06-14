@@ -88,12 +88,14 @@ app.get("/overview", async (_req, res) => {
   const enrichedLatestResult = latestResult
     ? await enrichRoundResult(latestResult.roundId, latestResult)
     : null;
+  const liveMarketSnapshot = await marketService.getLatestSnapshot().catch(() => null);
 
   res.json({
     ok: true,
     service: config.SERVICE_NAME,
     status,
     currentRound,
+    liveMarketSnapshot,
     latestSettledRoundId: resolvedSettledRoundId?.toString() ?? null,
     latestResult: enrichedLatestResult
       ? {

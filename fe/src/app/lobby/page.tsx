@@ -2,10 +2,16 @@
 
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { ConnectButton } from "@rainbow-me/rainbowkit";
-import { useQuery } from "@tanstack/react-query";
-import { useAccount, useReadContract } from "wagmi";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useAccount, usePublicClient, useReadContract, useWriteContract } from "wagmi";
 import CreateAgentModal from "./CreateAgentModal";
-import { agentRegistryAbi, arenaAbi, m2Deployment, mockUsdcAbi } from "@/lib/contracts";
+import {
+  agentRegistryAbi,
+  arenaAbi,
+  m2Deployment,
+  mantleSepoliaExplorerUrl,
+  mockUsdcAbi,
+} from "@/lib/contracts";
 import { fetchArenaOverview, resolveAgentAccent, resolveAgentSprite } from "@/lib/backend";
 import { formatToken } from "@/lib/format";
 
@@ -14,6 +20,7 @@ type ArenaCard = {
   status: "live" | "settled" | "idle";
   title: string;
   subtitle: string;
+  resultHash?: `0x${string}`;
   fighterLeft: string;
   fighterRight: string;
   accent: string;
@@ -24,9 +31,12 @@ type ArenaCard = {
 
 export default function LobbyPage() {
   const scalerRef = useRef<HTMLDivElement>(null);
+  const queryClient = useQueryClient();
   const [modal, setModal] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
   const { address } = useAccount();
+  const publicClient = usePublicClient();
+  const { writeContractAsync, isPending } = useWriteContract();
 
   const { data: overview } = useQuery({
     queryKey: ["m2", "overview"],
@@ -63,7 +73,7 @@ export default function LobbyPage() {
     functionName: "minimumActiveBond",
   });
 
-  const { data: usdcBalance } = useReadContract({
+  const { data: usdcBalance, refetch: refetchBalance } = useReadContract({
     address: m2Deployment.mockUsdc,
     abi: mockUsdcAbi,
     functionName: "balanceOf",
@@ -90,6 +100,32 @@ export default function LobbyPage() {
     setModal(false);
     setToast(`${name} CREATED: ${txHash.slice(0, 10)}...`);
     setTimeout(() => setToast(null), 3200);
+  }
+
+  async function handleClaimFaucet() {
+    if (!address || !publicClient) {
+      setToast("CONNECT WALLET FIRST.");
+      setTimeout(() => setToast(null), 3200);
+      return;
+    }
+
+    try {
+      setToast("CLAIMING 1,000 mUSDC...");
+      const hash = await writeContractAsync({
+        address: m2Deployment.mockUsdc,
+        abi: mockUsdcAbi,
+        functionName: "mint",
+        args: [address, 1_000n * 10n ** 18n],
+      });
+      await publicClient.waitForTransactionReceipt({ hash });
+      await refetchBalance();
+      await queryClient.invalidateQueries({ queryKey: ["m2", "overview"] });
+      setToast("FAUCET CLAIMED: +1,000 mUSDC");
+      setTimeout(() => setToast(null), 3200);
+    } catch (error) {
+      setToast(error instanceof Error ? error.message : "FAUCET CLAIM FAILED.");
+      setTimeout(() => setToast(null), 3200);
+    }
   }
 
   const featuredRound = featuredRoundRaw as
@@ -132,7 +168,8 @@ export default function LobbyPage() {
         key: `settled-${overview.latestResult.roundId}`,
         status: "settled",
         title: `ROUND ${overview.latestResult.roundId} SETTLED`,
-        subtitle: `Latest winner: ${overview.latestResult.agentDecisions[0]?.name ?? "Unknown"} · result hash recorded on-chain.`,
+        subtitle: `Latest winner: ${overview.latestResult.agentDecisions[0]?.name ?? "Unknown"} · settlement locked on-chain.`,
+        resultHash: overview.latestResult.resultHash,
         fighterLeft: resolveAgentSprite({
           image: latestDecisions[0]?.image,
           personality: latestDecisions[0]?.personality,
@@ -195,15 +232,26 @@ export default function LobbyPage() {
             </div>
 
             <div className="flex items-center" style={{ gap: 11 }}>
-              {[
-                { icon: "/mantle-logo.png", val: currentOpenRoundId > 0n ? `ROUND ${currentOpenRoundId.toString()}` : `LAST ${lastRoundId.toString()}` },
-                { icon: "/usdc-logo.png", val: `${formatToken(usdcBalance)} mUSDC` },
-              ].map(({ icon, val }) => (
-                <div key={icon} className="flex items-center" style={{ gap: 9, ...curSt }}>
-                  <img src={icon} alt="" style={{ width: 24, height: 24, imageRendering: "pixelated" }} />
-                  <span className="font-press" style={{ fontSize: 12, color: "#fff", letterSpacing: ".5px" }}>{val}</span>
-                </div>
-              ))}
+              <div className="flex items-center" style={{ gap: 9, ...curSt }}>
+                <img src="/usdc-logo.png" alt="" style={{ width: 24, height: 24, imageRendering: "pixelated" }} />
+                <span className="font-press" style={{ fontSize: 12, color: "#fff", letterSpacing: ".5px" }}>{`${formatToken(usdcBalance)} mUSDC`}</span>
+              </div>
+              <button
+                onClick={handleClaimFaucet}
+                disabled={isPending}
+                className="flex items-center"
+                style={{
+                  gap: 9,
+                  ...curSt,
+                  cursor: isPending ? "not-allowed" : "pointer",
+                  opacity: isPending ? 0.7 : 1,
+                }}
+              >
+                <img src="/mantle-logo.png" alt="" style={{ width: 24, height: 24, imageRendering: "pixelated" }} />
+                <span className="font-press" style={{ fontSize: 12, color: "#fff", letterSpacing: ".5px" }}>
+                  {isPending ? "CLAIMING..." : "CLAIM FAUCET"}
+                </span>
+              </button>
             </div>
 
             <TopBarConnectWallet />
@@ -215,7 +263,7 @@ export default function LobbyPage() {
                 LIVE ARENA LOBBY
               </div>
               <div className="font-silk" style={{ marginTop: 11, fontSize: 14, fontWeight: 700, color: "#2a2150", letterSpacing: ".5px" }}>
-                Everything below is now driven by live SC state and backend arena tracking.
+                Scout the contenders, top up your bankroll, and send your best build into the arena.
               </div>
               <div className="font-silk" style={{ marginTop: 8, fontSize: 12, fontWeight: 700, color: "#5b4f8c", letterSpacing: ".4px" }}>
                 {currentOpenRoundId > 0n
@@ -274,6 +322,24 @@ export default function LobbyPage() {
                   <div className="font-silk" style={{ fontSize: 12, fontWeight: 700, color: "#5f547f", lineHeight: 1.5 }}>
                     {arena.subtitle}
                   </div>
+                  {arena.resultHash ? (
+                    <a
+                      href={`${mantleSepoliaExplorerUrl}/search?f=0&q=${arena.resultHash}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="font-press"
+                      style={{
+                        fontSize: 9,
+                        color: "#6a44c9",
+                        letterSpacing: ".4px",
+                        textDecoration: "underline",
+                        textUnderlineOffset: 3,
+                        width: "fit-content",
+                      }}
+                    >
+                      HASH {arena.resultHash.slice(0, 10)}...{arena.resultHash.slice(-6)}
+                    </a>
+                  ) : null}
 
                   <div className="flex justify-between" style={{ gap: 8 }}>
                     {[

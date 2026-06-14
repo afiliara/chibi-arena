@@ -5,7 +5,7 @@ Last updated: 2026-06-14
 
 ## Current Focus
 
-`SC live, backend operator live, FE wired to SC + BE live data, pending final demo polish`
+`SC live, backend operator live, FE wired to SC + BE live data, arena live preview refresh added, pending final demo polish`
 
 ## Global Order
 
