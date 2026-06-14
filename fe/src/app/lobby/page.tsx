@@ -2,7 +2,10 @@
 
 import { useEffect, useRef, useState } from "react";
 import { ConnectButton } from "@rainbow-me/rainbowkit";
+import { useAccount, useReadContract } from "wagmi";
 import CreateAgentModal from "./CreateAgentModal";
+import { agentRegistryAbi, arenaAbi, m2Deployment, mockUsdcAbi } from "@/lib/contracts";
+import { formatToken } from "@/lib/format";
 
 /* ─── data ─── */
 const ARENAS = [
@@ -33,6 +36,35 @@ export default function LobbyPage() {
   const [filter, setFilter]    = useState("all");
   const [modal, setModal]      = useState(false);
   const [toast, setToast]      = useState<string | null>(null);
+  const { address } = useAccount();
+
+  const { data: currentOpenRoundId = 0n } = useReadContract({
+    address: m2Deployment.arena,
+    abi: arenaAbi,
+    functionName: "currentOpenRoundId",
+  });
+
+  const { data: lastRoundId = 0n } = useReadContract({
+    address: m2Deployment.arena,
+    abi: arenaAbi,
+    functionName: "lastRoundId",
+  });
+
+  const { data: minimumBond = 0n } = useReadContract({
+    address: m2Deployment.registry,
+    abi: agentRegistryAbi,
+    functionName: "minimumActiveBond",
+  });
+
+  const { data: usdcBalance } = useReadContract({
+    address: m2Deployment.mockUsdc,
+    abi: mockUsdcAbi,
+    functionName: "balanceOf",
+    args: address ? [address] : undefined,
+    query: {
+      enabled: Boolean(address),
+    },
+  });
 
   /* scaler — scale down only, page is scrollable */
   useEffect(() => {
@@ -48,10 +80,10 @@ export default function LobbyPage() {
     return () => window.removeEventListener("resize", fit);
   }, []);
 
-  function handleCreate(name: string) {
+  function handleCreate(name: string, txHash: `0x${string}`) {
     setModal(false);
-    setToast(`${name} CREATED!`);
-    setTimeout(() => setToast(null), 2200);
+    setToast(`${name} CREATED: ${txHash.slice(0, 10)}...`);
+    setTimeout(() => setToast(null), 3200);
   }
 
   const visible = filter === "all" ? ARENAS : ARENAS.filter(a => a.status === filter);
@@ -81,8 +113,11 @@ export default function LobbyPage() {
             </div>
 
             <div className="flex items-center" style={{ gap: 11 }}>
-              {[{ icon: "/mantle-logo.png", val: "12,458" }, { icon: "/usdc-logo.png", val: "2,350" }].map(({ icon, val }) => (
-                <div key={val} className="flex items-center" style={{ gap: 9, ...curSt }}>
+              {[
+                { icon: "/mantle-logo.png", val: currentOpenRoundId > 0n ? `ROUND ${currentOpenRoundId.toString()}` : `LAST ${lastRoundId.toString()}` },
+                { icon: "/usdc-logo.png", val: `${formatToken(usdcBalance)} mUSDC` },
+              ].map(({ icon, val }) => (
+                <div key={icon} className="flex items-center" style={{ gap: 9, ...curSt }}>
                   <img src={icon} alt="" style={{ width: 24, height: 24, imageRendering: "pixelated" }} />
                   <span className="font-press" style={{ fontSize: 12, color: "#fff", letterSpacing: ".5px" }}>{val}</span>
                 </div>
@@ -100,6 +135,11 @@ export default function LobbyPage() {
               </div>
               <div className="font-silk" style={{ marginTop: 11, fontSize: 14, fontWeight: 700, color: "#2a2150", letterSpacing: ".5px" }}>
                 Pick a battlefield and watch AI agents fight for the prize pool — or build your own.
+              </div>
+              <div className="font-silk" style={{ marginTop: 8, fontSize: 12, fontWeight: 700, color: "#5b4f8c", letterSpacing: ".4px" }}>
+                {currentOpenRoundId > 0n
+                  ? `Live round #${currentOpenRoundId.toString()} is accepting new agents. Minimum creator bond: ${formatToken(minimumBond)} mUSDC.`
+                  : "No round is open yet. Run the demo seeding step from the operator account to unlock live create and stake flows."}
               </div>
             </div>
             <button
@@ -223,7 +263,14 @@ export default function LobbyPage() {
       </div>
 
       {/* ═══ CREATE AGENT MODAL ═══ */}
-      {modal && <CreateAgentModal onClose={() => setModal(false)} onCreate={handleCreate} />}
+      {modal && (
+        <CreateAgentModal
+          currentRoundId={currentOpenRoundId}
+          minimumBond={minimumBond}
+          onClose={() => setModal(false)}
+          onCreate={handleCreate}
+        />
+      )}
 
       {/* ═══ TOAST ═══ */}
       <div
