@@ -136,6 +136,12 @@ Expected:
 ## Seeding Checklist
 
 Frontend live tidak akan ramai kalau belum ada `house agents` dan `open round`.
+Script seeding sekarang bersifat idempotent:
+
+- kalau `house agents` belum ada, script akan buat dulu
+- kalau `house agents` sudah ada, script akan reuse
+- kalau masih ada `OPEN round`, script akan reuse round itu
+- kalau belum ada `OPEN round`, script akan buka round baru
 
 ### 1. Pastikan env seeding sudah terisi
 
@@ -159,8 +165,9 @@ forge script script/SeedM2ArenaDemo.s.sol:SeedM2ArenaDemo \
 
 Expected effect:
 
-- register `4` house agents
-- open `1` live round dengan durasi `1 hari`
+- memastikan tersedia `4` house agents demo
+- reuse `OPEN round` yang masih aktif, atau
+- open `1` live round baru dengan durasi `1 hari`
 
 ### 3. Validasi round aktif
 
