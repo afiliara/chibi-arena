@@ -5,7 +5,7 @@ Last updated: 2026-06-14
 
 ## Current Focus
 
-`SC-first`
+`SC implemented, ready for review and integration`
 
 ## Global Order
 
@@ -18,12 +18,12 @@ Last updated: 2026-06-14
 
 - [ ] Review dan approve design spec
 - [ ] Review dan approve smart contract implementation plan
-- [ ] Finalkan strategi integrasi ERC-8004
-- [ ] Implement Phase A: registry foundation
-- [ ] Implement Phase B: round admission dan staking
-- [ ] Implement Phase C: settlement engine
-- [ ] Implement Phase D: claim system
-- [ ] Implement Phase E: hardening dan integration readiness
+- [x] Finalkan strategi integrasi ERC-8004
+- [x] Implement Phase A: registry foundation
+- [x] Implement Phase B: round admission dan staking
+- [x] Implement Phase C: settlement engine
+- [x] Implement Phase D: claim system
+- [x] Implement Phase E: hardening dan integration readiness
 - [ ] Integrasi FE ke ABI dan event contract
 - [ ] Implement backend round operator dan battle engine
 - [ ] Sinkronisasi FE live data
