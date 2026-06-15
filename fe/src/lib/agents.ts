@@ -23,7 +23,7 @@ export type AgentMetadata = {
 export function buildAgentMetadataUri(input: AgentProfileInput) {
   const payload: AgentMetadata = {
     name: input.name,
-    description: `M2 Arena agent using ${input.personality.toLowerCase()} persona and ${input.tradingStyle} strategy.`,
+    description: `Chibi Arena agent using ${input.personality.toLowerCase()} persona and ${input.tradingStyle} strategy.`,
     image: AGENT_SPRITES[input.personality],
     attributes: [
       { trait_type: "Personality", value: input.personality },

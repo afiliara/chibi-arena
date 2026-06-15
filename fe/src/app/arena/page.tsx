@@ -541,11 +541,11 @@ export function ArenaView({ forcedRoundId }: { forcedRoundId?: string }) {
 
             <div className="flex items-center" style={{ gap: 11 }}>
               {[
-                { icon: "/mantle-logo.png", val: featuredRoundId ? `ROUND ${featuredRoundId}` : "WAITING" },
+                { icon: null, val: featuredRoundId ? `ROUND ${featuredRoundId}` : "WAITING" },
                 { icon: "/usdc-logo.png", val: `${formatToken(usdcBalance)} mUSDC` },
               ].map(({ icon, val }) => (
                 <div
-                  key={icon}
+                  key={val}
                   className="flex items-center"
                   style={{
                     gap: 9,
@@ -556,7 +556,9 @@ export function ArenaView({ forcedRoundId }: { forcedRoundId?: string }) {
                     minWidth: 150,
                   }}
                 >
-                  <img src={icon} alt="" style={{ width: 24, height: 24, imageRendering: "pixelated" }} />
+                  {icon ? (
+                    <img src={icon} alt="" style={{ width: 24, height: 24, imageRendering: "pixelated" }} />
+                  ) : null}
                   <span className="font-press" style={{ fontSize: 12, color: "#fff", letterSpacing: ".5px" }}>{val}</span>
                 </div>
               ))}

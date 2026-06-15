@@ -164,10 +164,10 @@ export default function Home() {
                     textShadow: "0 2px 0 #fff, 2px 2px 0 rgba(120,90,200,.25)",
                   }}
                 >
-                  AI ARENA
+                  CHIBI ARENA
                 </div>
                 <div style={{ fontSize: "12px", color: "#9a8fc0", letterSpacing: ".5px", fontWeight: 700 }}>
-                  Mantle live state
+                  Mantle chibi battleground
                 </div>
               </div>
             </div>
@@ -267,7 +267,7 @@ export default function Home() {
                     `,
                   }}
                 >
-                  AI ARENA
+                  CHIBI ARENA
                 </div>
               </div>
 

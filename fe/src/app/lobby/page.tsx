@@ -358,7 +358,7 @@ export default function LobbyPage() {
                         textUnderlineOffset: 3,
                         width: "fit-content",
                       }}
-                      title={`Check round ${arena.roundId ?? "?"} result hash on-chain in the M2Arena contract`}
+                      title={`Check round ${arena.roundId ?? "?"} result hash on-chain in the Chibi Arena contract`}
                     >
                       RESULT {arena.resultHash.slice(0, 10)}...{arena.resultHash.slice(-6)}
                     </a>
