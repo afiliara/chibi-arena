@@ -10,6 +10,7 @@ import {M2Arena} from "../src/M2Arena.sol";
 contract SeedM2ArenaDemo is Script {
     uint256 private constant HOUSE_AGENT_COUNT = 4;
     uint256 private constant DEMO_ROUND_DURATION = 1 days;
+    uint256 private constant DEFAULT_DEMO_BACKSTOP_CAP = 100 ether;
 
     /// @notice Reuses the first four registered house agents, creates any missing ones, and ensures one demo round exists.
     /// @return roundId Active round id after the script finishes.
@@ -19,6 +20,7 @@ contract SeedM2ArenaDemo is Script {
         address deployer = vm.envOr("DEPLOYER_ADDRESS", address(0));
         address registryAddress = vm.envAddress("M2_AGENT_REGISTRY_ADDRESS");
         address arenaAddress = vm.envAddress("M2_ARENA_ADDRESS");
+        uint256 backstopCap = vm.envOr("DEMO_BACKSTOP_CAP", DEFAULT_DEMO_BACKSTOP_CAP);
 
         if (deployerPrivateKey != 0) {
             deployer = vm.addr(deployerPrivateKey);
@@ -38,7 +40,7 @@ contract SeedM2ArenaDemo is Script {
             roundId = currentOpenRoundId;
         } else {
             roundId = arena.openRound(
-                uint64(block.timestamp), uint64(block.timestamp + DEMO_ROUND_DURATION), 0, houseAgentIds
+                uint64(block.timestamp), uint64(block.timestamp + DEMO_ROUND_DURATION), backstopCap, houseAgentIds
             );
         }
 
