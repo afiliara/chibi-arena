@@ -96,11 +96,26 @@ export type BackendAgentDecision = {
 export type BackendRoundResult = {
   roundId: string;
   generatedAt: string;
-  startSnapshot: BackendMarketSnapshot;
-  endSnapshot: BackendMarketSnapshot;
+  startSnapshot: BackendMarketSnapshot | null;
+  endSnapshot: BackendMarketSnapshot | null;
   agentDecisions: BackendAgentDecision[];
   resultHash: `0x${string}`;
   submitTxHash?: `0x${string}`;
+};
+
+export type BackendHistoryRound = {
+  roundId: string;
+  status: "live" | "settled" | "locked";
+  participantCount: number;
+  prizePool: string;
+  resultHash?: `0x${string}`;
+  submitTxHash?: `0x${string}`;
+  winnerName?: string | null;
+  agents: Array<{
+    name: string;
+    image?: string;
+    personality?: string;
+  }>;
 };
 
 export type BackendOverview = {
@@ -109,6 +124,7 @@ export type BackendOverview = {
   status: BackendStatusSnapshot;
   currentRound: BackendCurrentRound | null;
   liveMarketSnapshot: BackendMarketSnapshot | null;
+  historyRounds: BackendHistoryRound[];
   latestSettledRoundId: string | null;
   latestResult: BackendRoundResult | null;
 };

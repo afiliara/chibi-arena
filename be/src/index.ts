@@ -54,7 +54,8 @@ app.get("/round/current", async (_req, res) => {
 
 app.get("/round/:roundId/result", async (req, res) => {
   const roundId = parseRoundId(req.params.roundId);
-  const result = await schedulerService.getStoredRoundResult(roundId);
+  const result = await schedulerService.getStoredRoundResult(roundId)
+    ?? await chainService.reconstructSettledRoundResult(roundId);
   if (!result) {
     res.status(404).json({
       ok: false,
@@ -80,13 +81,19 @@ app.get("/round/:roundId/result", async (req, res) => {
 app.get("/overview", async (_req, res) => {
   const status = schedulerService.getStatusSnapshot();
   const currentRound = await schedulerService.getCurrentRoundSummary();
-  const latestSettledRoundId = status.lastSettledRoundId ? BigInt(status.lastSettledRoundId) : null;
+  const statusSettledRoundId = safeBigInt(status.lastSettledRoundId);
+  const historyRounds = await buildHistoryRounds(currentRound, statusSettledRoundId).catch(() => []);
+  const storedLatestResult = await schedulerService.getLatestStoredRoundResult().catch(() => null);
+  const latestSettledRoundId = statusSettledRoundId
+    ?? storedLatestResult?.roundId
+    ?? inferLatestSettledRoundId(historyRounds)
+    ?? await chainService.getLatestSettledRoundId().catch(() => null);
   const latestResult = latestSettledRoundId
-    ? await schedulerService.getStoredRoundResult(latestSettledRoundId)
-    : await schedulerService.getLatestStoredRoundResult();
-  const resolvedSettledRoundId = latestSettledRoundId ?? latestResult?.roundId ?? null;
+    ? await schedulerService.getStoredRoundResult(latestSettledRoundId).catch(() => null)
+      ?? await chainService.reconstructSettledRoundResult(latestSettledRoundId).catch(() => null)
+    : storedLatestResult;
   const enrichedLatestResult = latestResult
-    ? await enrichRoundResult(latestResult.roundId, latestResult)
+    ? await enrichRoundResult(latestResult.roundId, latestResult).catch(() => latestResult)
     : null;
   const liveMarketSnapshot = await marketService.getLatestSnapshot().catch(() => null);
 
@@ -96,7 +103,8 @@ app.get("/overview", async (_req, res) => {
     status,
     currentRound,
     liveMarketSnapshot,
-    latestSettledRoundId: resolvedSettledRoundId?.toString() ?? null,
+    historyRounds,
+    latestSettledRoundId: latestSettledRoundId?.toString() ?? null,
     latestResult: enrichedLatestResult
       ? {
           ...enrichedLatestResult,
@@ -189,7 +197,10 @@ async function enrichRoundResult(
     };
   }
 
-  const profiles = await chainService.getParticipantsWithProfiles(roundId);
+  const profiles = await chainService.getParticipantsWithProfiles(roundId).catch(() => ({
+    participantIds: [] as bigint[],
+    participants: [],
+  }));
   const profileByAgentId = new Map(
     profiles.participants.map((participant) => [participant.agentId.toString(), participant]),
   );
@@ -213,4 +224,123 @@ async function enrichRoundResult(
       };
     }),
   };
+}
+
+async function buildHistoryRounds(
+  currentRound: Awaited<ReturnType<SchedulerService["getCurrentRoundSummary"]>>,
+  latestSettledRoundId: bigint | null,
+) {
+  const storedRoundIds = await runtimeStore.listRoundResultIds().catch(() => []);
+  const roundIds = new Set<bigint>(storedRoundIds);
+  const lastRoundId = await chainService.getLastRoundId().catch(() => 0n);
+  if (lastRoundId > 0n) {
+    roundIds.add(lastRoundId);
+    if (lastRoundId > 1n) {
+      roundIds.add(lastRoundId - 1n);
+    }
+  }
+  if (currentRound) {
+    roundIds.add(BigInt(currentRound.roundId));
+  }
+  if (latestSettledRoundId) {
+    roundIds.add(latestSettledRoundId);
+  }
+
+  const orderedRoundIds = [...roundIds].sort((left, right) => Number(right - left));
+  const rounds: Array<{
+    roundId: string;
+    status: "live" | "settled" | "locked";
+    participantCount: number;
+    prizePool: string;
+    resultHash?: `0x${string}`;
+    submitTxHash?: `0x${string}`;
+    winnerName?: string | null;
+    agents: Array<{
+      name: string;
+      image?: string;
+      personality?: string;
+      }>;
+  }> = [];
+
+  for (const roundId of orderedRoundIds) {
+    if (currentRound && currentRound.roundId === roundId.toString()) {
+      rounds.push({
+        roundId: roundId.toString(),
+        status: "live",
+        participantCount: currentRound.participantIds.length,
+        prizePool: "0",
+        agents: currentRound.participants.map((participant) => ({
+          name: participant.name,
+          image: participant.image,
+          personality: participant.personality,
+        })),
+      });
+      continue;
+    }
+
+    const round = await chainService.getRound(roundId).catch(() => null);
+    const storedResult = await schedulerService.getStoredRoundResult(roundId).catch(() => null);
+    const settledResult = storedResult
+      ?? (round?.status === 3 ? await chainService.reconstructSettledRoundResult(roundId).catch(() => null) : null);
+
+    if (settledResult) {
+      const enriched = await enrichRoundResult(roundId, settledResult).catch(() => settledResult);
+      rounds.push({
+        roundId: roundId.toString(),
+        status: "settled",
+        participantCount: enriched.agentDecisions.length,
+        prizePool: round?.totalStaked.toString() ?? "0",
+        resultHash: enriched.resultHash,
+        submitTxHash: enriched.submitTxHash,
+        winnerName: enriched.agentDecisions[0]?.name ?? null,
+        agents: enriched.agentDecisions.map((decision) => ({
+          name: decision.name,
+          image: decision.image,
+          personality: decision.personality,
+        })),
+      });
+      continue;
+    }
+
+    if (!round) {
+      rounds.push({
+        roundId: roundId.toString(),
+        status: latestSettledRoundId === roundId ? "settled" : "locked",
+        participantCount: 0,
+        prizePool: "0",
+        agents: [],
+      });
+      continue;
+    }
+
+    rounds.push({
+      roundId: roundId.toString(),
+      status: round.status === 2 ? "locked" : "live",
+      participantCount: round.participantCount,
+      prizePool: round.totalStaked.toString(),
+      resultHash: round.resultHash !== "0x0000000000000000000000000000000000000000000000000000000000000000" ? round.resultHash : undefined,
+      agents: [],
+    });
+  }
+
+  return rounds;
+}
+
+function inferLatestSettledRoundId(
+  rounds: Awaited<ReturnType<typeof buildHistoryRounds>>,
+) {
+  const settledRound = rounds.find((round) => round.status === "settled");
+  return settledRound ? BigInt(settledRound.roundId) : null;
+}
+
+function safeBigInt(value: string | null) {
+  if (!value) {
+    return null;
+  }
+
+  try {
+    return BigInt(value);
+  } catch {
+    return null;
+  }
 }

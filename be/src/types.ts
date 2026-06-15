@@ -102,8 +102,8 @@ export type TrackedRoundState = {
 export type PreparedRoundResult = {
   roundId: bigint;
   generatedAt: string;
-  startSnapshot: MarketSnapshot;
-  endSnapshot: MarketSnapshot;
+  startSnapshot: MarketSnapshot | null;
+  endSnapshot: MarketSnapshot | null;
   agentDecisions: AgentRoundResult[];
   resultHash: `0x${string}`;
   submitTxHash?: `0x${string}`;
@@ -164,8 +164,8 @@ export type SerializedAgentProfile = {
 export type SerializedPreparedRoundResult = {
   roundId: string;
   generatedAt: string;
-  startSnapshot: MarketSnapshot;
-  endSnapshot: MarketSnapshot;
+  startSnapshot: MarketSnapshot | null;
+  endSnapshot: MarketSnapshot | null;
   agentDecisions: Array<{
     agentId: string;
     owner: `0x${string}`;

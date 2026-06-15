@@ -52,23 +52,6 @@ export default function LobbyPage() {
     functionName: "currentOpenRoundId",
   });
 
-  const { data: lastRoundId = 0n } = useReadContract({
-    address: m2Deployment.arena,
-    abi: arenaAbi,
-    functionName: "lastRoundId",
-  });
-
-  const featuredRoundId = overview?.currentRound?.roundId ?? overview?.latestResult?.roundId ?? null;
-  const { data: featuredRoundRaw } = useReadContract({
-    address: m2Deployment.arena,
-    abi: arenaAbi,
-    functionName: "getRound",
-    args: featuredRoundId ? [BigInt(featuredRoundId)] : undefined,
-    query: {
-      enabled: Boolean(featuredRoundId),
-    },
-  });
-
   const { data: minimumBond = 0n } = useReadContract({
     address: m2Deployment.registry,
     abi: agentRegistryAbi,
@@ -130,70 +113,50 @@ export default function LobbyPage() {
     }
   }
 
-  const featuredRound = featuredRoundRaw as
-    | readonly [number, bigint, bigint, number, bigint, bigint, bigint, bigint, `0x${string}`, readonly [bigint, bigint, bigint]]
-    | undefined;
-  const currentParticipants = overview?.currentRound?.participants ?? [];
-  const latestDecisions = overview?.latestResult?.agentDecisions ?? [];
-
   const arenaCards = useMemo(() => {
-    const cards: ArenaCard[] = [];
-
-    if (overview?.currentRound) {
-      cards.push({
-        key: `current-${overview.currentRound.roundId}`,
-        status: "live",
-        roundId: overview.currentRound.roundId,
-        title: `CRYSTAL COLISEUM · ROUND ${overview.currentRound.roundId}`,
-        subtitle: "Live round open for staking and new agent admission.",
+    const cards: ArenaCard[] = (overview?.historyRounds ?? []).map((round, index) => {
+      const leftAgent = round.agents[0];
+      const rightAgent = round.agents[1] ?? round.agents[0];
+      return {
+        key: `${round.status}-${round.roundId}`,
+        status: round.status === "locked" ? "idle" : round.status,
+        roundId: round.roundId,
+        title: round.status === "live"
+          ? `CRYSTAL COLISEUM · ROUND ${round.roundId}`
+          : round.status === "settled"
+            ? `ROUND ${round.roundId} SETTLED`
+            : `ROUND ${round.roundId} LOCKED`,
+        subtitle: round.status === "live"
+          ? "Live round open for staking and new agent admission."
+          : round.status === "settled"
+            ? `Latest winner: ${round.winnerName ?? "Unknown"} · settlement locked on-chain.`
+            : "Round is locked and waiting for settlement to be finalized.",
+        resultHash: round.resultHash,
+        submitTxHash: round.submitTxHash,
         fighterLeft: resolveAgentSprite({
-          image: currentParticipants[0]?.image,
-          personality: currentParticipants[0]?.personality,
-          fallbackName: currentParticipants[0]?.name,
+          image: leftAgent?.image,
+          personality: leftAgent?.personality,
+          fallbackName: leftAgent?.name,
         }),
         fighterRight: resolveAgentSprite({
-          image: currentParticipants[1]?.image,
-          personality: currentParticipants[1]?.personality,
-          fallbackName: currentParticipants[1]?.name,
+          image: rightAgent?.image,
+          personality: rightAgent?.personality,
+          fallbackName: rightAgent?.name,
         }),
         accent: resolveAgentAccent({
-          personality: currentParticipants[0]?.personality,
-          fallbackName: currentParticipants[0]?.name,
+          personality: leftAgent?.personality,
+          fallbackName: leftAgent?.name,
+          index,
         }),
-        participantCount: overview.currentRound.participantIds.length,
-        prizePoolLabel: `${formatToken(featuredRound?.[4] ?? 0n)} mUSDC`,
-        cta: "ENTER LIVE ARENA",
-      });
-    }
-
-    if (overview?.latestResult) {
-      cards.push({
-        key: `settled-${overview.latestResult.roundId}`,
-        status: "settled",
-        roundId: overview.latestResult.roundId,
-        title: `ROUND ${overview.latestResult.roundId} SETTLED`,
-        subtitle: `Latest winner: ${overview.latestResult.agentDecisions[0]?.name ?? "Unknown"} · settlement locked on-chain.`,
-        resultHash: overview.latestResult.resultHash,
-        submitTxHash: overview.latestResult.submitTxHash,
-        fighterLeft: resolveAgentSprite({
-          image: latestDecisions[0]?.image,
-          personality: latestDecisions[0]?.personality,
-          fallbackName: latestDecisions[0]?.name,
-        }),
-        fighterRight: resolveAgentSprite({
-          image: latestDecisions[1]?.image,
-          personality: latestDecisions[1]?.personality,
-          fallbackName: latestDecisions[1]?.name,
-        }),
-        accent: resolveAgentAccent({
-          personality: latestDecisions[0]?.personality,
-          fallbackName: latestDecisions[0]?.name,
-        }),
-        participantCount: overview.latestResult.agentDecisions.length,
-        prizePoolLabel: `${formatToken(featuredRound?.[4] ?? 0n)} mUSDC`,
-        cta: "REVIEW SETTLEMENT",
-      });
-    }
+        participantCount: round.participantCount,
+        prizePoolLabel: `${formatToken(BigInt(round.prizePool))} mUSDC`,
+        cta: round.status === "live"
+          ? "ENTER LIVE ARENA"
+          : round.status === "settled"
+            ? "REVIEW SETTLEMENT"
+            : "VIEW ROUND",
+      };
+    });
 
     if (cards.length === 0) {
       cards.push({
@@ -212,7 +175,10 @@ export default function LobbyPage() {
     }
 
     return cards;
-  }, [currentParticipants, featuredRound, latestDecisions, overview]);
+  }, [overview]);
+
+  const latestSettledRound = arenaCards.find((card) => card.status === "settled");
+  const liveRound = arenaCards.find((card) => card.status === "live");
 
   return (
     <div
@@ -270,17 +236,17 @@ export default function LobbyPage() {
                 Scout the contenders, top up your bankroll, and send your best build into the arena.
               </div>
               <div className="font-silk" style={{ marginTop: 8, fontSize: 12, fontWeight: 700, color: "#5b4f8c", letterSpacing: ".4px" }}>
-                {currentOpenRoundId > 0n
-                  ? `Round #${currentOpenRoundId.toString()} is open. Minimum creator bond: ${formatToken(minimumBond)} mUSDC.`
-                  : overview?.latestResult
-                    ? `Latest settled round #${overview.latestResult.roundId} is ready for review and reward claims.`
+                {liveRound?.roundId
+                  ? `Round #${liveRound.roundId} is open. Minimum creator bond: ${formatToken(minimumBond)} mUSDC.`
+                  : latestSettledRound?.roundId
+                    ? `Latest settled round #${latestSettledRound.roundId} is ready for review and reward claims.`
                     : "No open round yet. Seed a new round from the backend operator to unlock create and stake flows."}
               </div>
             </div>
             <button
               onClick={() => setModal(true)}
               className="flex items-center font-press"
-              style={{ gap: 13, background: "linear-gradient(180deg,#ffd95a 0%,#ffb22e 55%,#f08c12 100%)", border: "4px solid #7a4405", borderRadius: 15, padding: "13px 24px", cursor: "pointer", fontSize: 15, color: "#fff", letterSpacing: 1, textShadow: "0 2px 0 #c96a08", boxShadow: "0 6px 0 #b86a05, inset 0 3px 0 rgba(255,255,255,.5)", whiteSpace: "nowrap", opacity: currentOpenRoundId > 0n ? 1 : 0.75 }}
+              style={{ gap: 13, background: "linear-gradient(180deg,#ffd95a 0%,#ffb22e 55%,#f08c12 100%)", border: "4px solid #7a4405", borderRadius: 15, padding: "13px 24px", cursor: "pointer", fontSize: 15, color: "#fff", letterSpacing: 1, textShadow: "0 2px 0 #c96a08", boxShadow: "0 6px 0 #b86a05, inset 0 3px 0 rgba(255,255,255,.5)", whiteSpace: "nowrap", opacity: liveRound ? 1 : 0.75 }}
             >
               <span style={{ width: 34, height: 34, borderRadius: "50%", background: "rgba(255,255,255,.2)", border: "2px solid #fff", overflow: "hidden", display: "grid", placeItems: "center" }}>
                 <img src="/blitz.png" alt="" style={{ width: 30, height: 30, objectFit: "cover", objectPosition: "center 16%", imageRendering: "pixelated" }} />
@@ -409,7 +375,7 @@ export default function LobbyPage() {
 
       {modal && (
         <CreateAgentModal
-          currentRoundId={currentOpenRoundId}
+          currentRoundId={liveRound?.roundId ? BigInt(liveRound.roundId) : currentOpenRoundId}
           minimumBond={minimumBond}
           onClose={() => setModal(false)}
           onCreate={handleCreate}

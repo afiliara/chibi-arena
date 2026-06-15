@@ -100,18 +100,39 @@ export default function ArenaPage() {
     queryFn: fetchArenaOverview,
     refetchInterval: 5_000,
   });
+  const { data: currentOpenRoundId = 0n } = useReadContract({
+    address: m2Deployment.arena,
+    abi: arenaAbi,
+    functionName: "currentOpenRoundId",
+  });
+  const { data: lastRoundId = 0n } = useReadContract({
+    address: m2Deployment.arena,
+    abi: arenaAbi,
+    functionName: "lastRoundId",
+  });
+  const { data: lastRoundRaw } = useReadContract({
+    address: m2Deployment.arena,
+    abi: arenaAbi,
+    functionName: "getRound",
+    args: lastRoundId > 0n ? [lastRoundId] : undefined,
+    query: {
+      enabled: lastRoundId > 0n,
+    },
+  });
 
   useEffect(() => {
     const targetRoundId =
       overview?.currentRound?.roundId
       ?? overview?.latestSettledRoundId
       ?? overview?.latestResult?.roundId
+      ?? (currentOpenRoundId > 0n ? currentOpenRoundId.toString() : null)
+      ?? (((lastRoundRaw as RoundTuple | undefined)?.[0] ?? 0) === 3 ? lastRoundId.toString() : null)
       ?? null;
 
     if (targetRoundId) {
       router.replace(`/arena/${targetRoundId}`);
     }
-  }, [overview, router]);
+  }, [currentOpenRoundId, lastRoundId, lastRoundRaw, overview, router]);
 
   return (
     <ArenaRouteShell
@@ -164,8 +185,6 @@ export function ArenaView({ forcedRoundId }: { forcedRoundId?: string }) {
       : latestResult;
   const featuredRoundId = requestedRoundId ?? currentRound?.roundId ?? settledResult?.roundId ?? null;
   const featuredRoundIdBigInt = featuredRoundId ? BigInt(featuredRoundId) : undefined;
-  const isRoundOpen = Boolean(currentRound);
-  const isRoundSettled = !currentRound && Boolean(settledResult);
 
   const { data: featuredRoundRaw } = useReadContract({
     address: m2Deployment.arena,
@@ -254,6 +273,10 @@ export function ArenaView({ forcedRoundId }: { forcedRoundId?: string }) {
   }, [participantIds.length]);
 
   const featuredRound = featuredRoundRaw as RoundTuple | undefined;
+  const onChainRoundStatus = featuredRound?.[0] ?? 0;
+  const hasOnChainSettledFallback = !currentRound && !settledResult && onChainRoundStatus === 3;
+  const isRoundOpen = Boolean(currentRound);
+  const isRoundSettled = !currentRound && (Boolean(settledResult) || hasOnChainSettledFallback);
   const previewDecisionByAgentId = new Map(
     (currentRound?.previewDecisions ?? []).map((decision) => [decision.agentId, decision] as const),
   );
@@ -274,9 +297,9 @@ export function ArenaView({ forcedRoundId }: { forcedRoundId?: string }) {
       ?? previewDecision?.previewRank
       ?? (state?.[5] && state[5] > 0 ? state[5] : index + 1);
     const pnlBps = latestDecision?.finalPnlBps ?? previewDecision?.previewPnlBps ?? (state?.[6] ?? 0);
-    const personality = "personality" in (meta ?? {}) ? meta?.personality ?? "UNKNOWN" : "UNKNOWN";
-    const tradingStyle = "tradingStyle" in (meta ?? {}) ? meta?.tradingStyle ?? "Adaptive" : "Adaptive";
-    const name = meta?.name ?? `AGENT #${agentId.toString()}`;
+    const personality = "personality" in (meta ?? {}) ? meta?.personality ?? fallbackPersonality(agentId) : fallbackPersonality(agentId);
+    const tradingStyle = "tradingStyle" in (meta ?? {}) ? meta?.tradingStyle ?? fallbackTradingStyle(agentId) : fallbackTradingStyle(agentId);
+    const name = meta?.name ?? fallbackAgentName(agentId);
     return {
       agentId,
       name,
@@ -474,7 +497,16 @@ export function ArenaView({ forcedRoundId }: { forcedRoundId?: string }) {
         }),
         msg: `${participant.tradingStyle} strategy queued • ${participant.personality} persona`,
         time: "TRACKING",
-      })) ?? [];
+      })) ?? (hasOnChainSettledFallback
+        ? rows.map((row, index) => ({
+            key: `${row.agentId.toString()}-${row.rank}`,
+            agent: row.name,
+            agentColor: row.accent,
+            sprite: row.sprite,
+            msg: `${row.tradingStyle} locked in on-chain settlement at ${formatPnl(row.pnlBps)}.`,
+            time: `RANK ${row.rank}`,
+          }))
+        : []);
 
   const activeLiveFeed = settledResult
     ? liveFeed
@@ -826,16 +858,16 @@ export function ArenaView({ forcedRoundId }: { forcedRoundId?: string }) {
                     <span style={{ color: "#fff", fontSize: 20, lineHeight: 1 }}>{currentRound ? "\u2191" : "\u2713"}</span>
                   </div>
                   <span className="font-press" style={{ fontSize: 15, color: currentRound ? "#2faa55" : "#8a5fe0", letterSpacing: ".5px" }}>
-                    {currentRound ? "TRACKING" : latestResult ? "SETTLED" : "IDLE"}
+                    {currentRound ? "TRACKING" : isRoundSettled ? "SETTLED" : "IDLE"}
                   </span>
                 </div>
                 <div style={{ width: "100%", height: 12, borderRadius: 7, background: "#e2d9c2", overflow: "hidden", border: "2px solid #cfc4a6" }}>
-                  <div style={{ height: "100%", width: currentRound ? "72%" : latestResult ? "100%" : "12%", background: currentRound ? "linear-gradient(90deg,#3ad07a,#2faa55)" : "linear-gradient(90deg,#9b78ee,#6a44c9)" }} />
+                  <div style={{ height: "100%", width: currentRound ? "72%" : isRoundSettled ? "100%" : "12%", background: currentRound ? "linear-gradient(90deg,#3ad07a,#2faa55)" : "linear-gradient(90deg,#9b78ee,#6a44c9)" }} />
                 </div>
                 <div className="font-silk" style={{ fontSize: 11, color: "#9a8f6e", fontWeight: 700, textAlign: "center" }}>
                   {currentRound
                     ? "The arena is live and locking in moves before settlement."
-                    : latestResult
+                    : isRoundSettled
                       ? "Latest round has settled. Claims are now available for winners."
                       : "No tracked round found yet."}
                 </div>
@@ -857,7 +889,7 @@ export function ArenaView({ forcedRoundId }: { forcedRoundId?: string }) {
                 <div className="flex flex-col" style={{ gap: 6 }}>
                   <span className="font-press" style={{ fontSize: 8, color: "#9a8f6e", letterSpacing: ".5px" }}>{currentRound ? "ROUND ENDS IN" : "RESULT HASH"}</span>
                   <span className="font-press" style={{ fontSize: 13, color: "#3a2e63" }}>
-                    {currentRound ? countdown : `${latestResult?.resultHash.slice(0, 8) ?? "0x0"}...`}
+                    {currentRound ? countdown : `${(settledResult?.resultHash ?? featuredRound?.[8] ?? "0x0").slice(0, 8)}...`}
                   </span>
                 </div>
               </div>
@@ -876,8 +908,8 @@ export function ArenaView({ forcedRoundId }: { forcedRoundId?: string }) {
               }}
               onClick={() =>
                 window.open(
-                  latestResult?.submitTxHash
-                    ? `${mantleSepoliaExplorerUrl}/tx/${latestResult.submitTxHash}`
+                  settledResult?.submitTxHash
+                    ? `${mantleSepoliaExplorerUrl}/tx/${settledResult.submitTxHash}`
                     : `${mantleSepoliaExplorerUrl}/address/${m2Deployment.arena}`,
                   "_blank",
                   "noopener,noreferrer",
@@ -1021,6 +1053,51 @@ function secondaryActionButton(enabled: boolean): React.CSSProperties {
 
 function formatPnl(pnlBps: number) {
   return `${pnlBps >= 0 ? "+" : ""}${(pnlBps / 100).toFixed(2)}%`;
+}
+
+function fallbackAgentName(agentId: bigint) {
+  switch (agentId.toString()) {
+    case "1":
+      return "BLITZ";
+    case "2":
+      return "NOVA";
+    case "3":
+      return "BYTE";
+    case "4":
+      return "ZENITH";
+    default:
+      return `AGENT #${agentId.toString()}`;
+  }
+}
+
+function fallbackPersonality(agentId: bigint) {
+  switch (agentId.toString()) {
+    case "1":
+      return "AGGRESSIVE";
+    case "2":
+      return "MOMENTUM";
+    case "3":
+      return "ANALYST";
+    case "4":
+      return "CONSERVATIVE";
+    default:
+      return "UNKNOWN";
+  }
+}
+
+function fallbackTradingStyle(agentId: bigint) {
+  switch (agentId.toString()) {
+    case "1":
+      return "Momentum Raider";
+    case "2":
+      return "Breakout Hunter";
+    case "3":
+      return "Mean Reversion Analyst";
+    case "4":
+      return "Capital Preserver";
+    default:
+      return "Arena Challenger";
+  }
 }
 
 function TopBarConnectWallet() {

@@ -50,6 +50,13 @@ export const arenaAbi = [
   {
     type: "function",
     stateMutability: "view",
+    name: "lastRoundId",
+    inputs: [],
+    outputs: [{ name: "", type: "uint256" }],
+  },
+  {
+    type: "function",
+    stateMutability: "view",
     name: "getRound",
     inputs: [{ name: "roundId", type: "uint256" }],
     outputs: [
@@ -71,6 +78,30 @@ export const arenaAbi = [
     name: "getRoundParticipants",
     inputs: [{ name: "roundId", type: "uint256" }],
     outputs: [{ name: "participants", type: "uint256[]" }],
+  },
+  {
+    type: "function",
+    stateMutability: "view",
+    name: "getRoundAgentState",
+    inputs: [
+      { name: "roundId", type: "uint256" },
+      { name: "agentId", type: "uint256" },
+    ],
+    outputs: [
+      { name: "joined", type: "bool" },
+      { name: "isHouseAgent", type: "bool" },
+      { name: "isWinner", type: "bool" },
+      { name: "creatorClaimed", type: "bool" },
+      { name: "creator", type: "address" },
+      { name: "rank", type: "uint8" },
+      { name: "finalPnlBps", type: "int32" },
+      { name: "bondSlashBps", type: "uint16" },
+      { name: "bondSlashed", type: "uint256" },
+      { name: "totalStake", type: "uint256" },
+      { name: "winnerBucket", type: "uint256" },
+      { name: "stakerRewardPool", type: "uint256" },
+      { name: "creatorReward", type: "uint256" },
+    ],
   },
   {
     type: "function",

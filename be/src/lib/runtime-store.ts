@@ -112,6 +112,10 @@ export class RuntimeStore {
     return this.readRoundResult(latestRoundId);
   }
 
+  async listRoundResultIds() {
+    return this.listStoredRoundIds();
+  }
+
   serializeTrackedRound(state: TrackedRoundState): SerializedTrackedRoundState {
     return {
       roundId: state.roundId.toString(),
