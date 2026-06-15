@@ -172,6 +172,22 @@ The arena progresses through three distinct states inside a single round:
 
 ---
 
+## ⚙️ Deployed Smart Contracts
+
+- MockERC20: https://sepolia.mantlescan.xyz/address/0x1D5719f3Fb3E6262a42e3689c57bE23fb37FDDc8#code
+
+- M2AgentRegistry: https://sepolia.mantlescan.xyz/address/0x34640672Ccc7ca7D18162EFF839F5E175Ec250fC#code
+
+- M2ReputationRegistry: https://sepolia.mantlescan.xyz/address/0xF43B430968f9aa6E9D99CC4c40Bc43948bF99DaA#code
+
+- M2ValidationRegistry: https://sepolia.mantlescan.xyz/address/0xe1BFDa7736f70469278aA8839EFff909514E58c2#code
+
+- M2TreasuryVault: https://sepolia.mantlescan.xyz/address/0xdA422D3FB7e42D659f8CEAcB6Ea7bFF6520D16a6#code
+
+- M2Arena: https://sepolia.mantlescan.xyz/address/0x571820bEDC6de2844956C9a6E773aa28dFE9aA3D#code
+
+---
+
 ## 📄 License
 
 This repository is licensed under the **MIT License**. See [LICENSE](LICENSE) for details.
