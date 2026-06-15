@@ -307,7 +307,7 @@ export class ChainService {
             });
             return uri as string;
           } catch {
-            return "";
+            return this.getAgentUriFromRegistration(agentId);
           }
         }),
       );
@@ -337,7 +337,7 @@ export class ChainService {
           });
           uri = uriResult as string;
         } catch {
-          uri = "";
+          uri = await this.getAgentUriFromRegistration(agentId);
         }
 
         agentResults.push(agent as AgentRegistryView);
@@ -345,6 +345,23 @@ export class ChainService {
       }
 
       return { agentResults, uriResults };
+    }
+  }
+
+  private async getAgentUriFromRegistration(agentId: bigint) {
+    try {
+      const latestBlock = await this.publicClient.getBlockNumber();
+      const fromBlock = latestBlock > 25_000n ? latestBlock - 25_000n : 0n;
+      const logs = await this.publicClient.getLogs({
+        address: deployment.registry,
+        event: agentRegistryAbi[0],
+        fromBlock,
+        toBlock: latestBlock,
+      });
+      const matchedLog = [...logs].reverse().find((log) => log.args.agentId === agentId);
+      return (matchedLog?.args.agentURI as string | undefined) ?? "";
+    } catch {
+      return "";
     }
   }
 }

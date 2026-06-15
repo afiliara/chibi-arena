@@ -127,6 +127,18 @@ export const arenaAbi = [
 
 export const agentRegistryAbi = [
   {
+    type: "event",
+    anonymous: false,
+    name: "AgentRegistered",
+    inputs: [
+      { name: "owner", type: "address", indexed: true },
+      { name: "agentId", type: "uint256", indexed: false },
+      { name: "isHouseAgent", type: "bool", indexed: false },
+      { name: "initialBond", type: "uint256", indexed: false },
+      { name: "agentURI", type: "string", indexed: false },
+    ],
+  },
+  {
     type: "function",
     stateMutability: "view",
     name: "getAgent",

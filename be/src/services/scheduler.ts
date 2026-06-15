@@ -309,6 +309,8 @@ export class SchedulerService {
       return;
     }
 
+    await this.refreshActiveRoundParticipants();
+
     const latestSnapshot = await this.marketService.getLatestSnapshot();
     this.activeRound.latestSnapshot = latestSnapshot;
 
@@ -332,4 +334,43 @@ export class SchedulerService {
     this.activeRound.previewUpdatedAt = new Date().toISOString();
     this.lastPreviewRefreshAt = now;
   }
+
+  private async refreshActiveRoundParticipants() {
+    if (!this.activeRound) {
+      return;
+    }
+
+    const latestParticipantIds = await this.chainService.getRoundParticipants(this.activeRound.roundId);
+    const shouldRefreshMetadata = this.activeRound.participants.some((participant) =>
+      !participant.isHouseAgent && isIncompleteParticipantProfile(participant)
+    );
+    if (!shouldRefreshMetadata && sameAgentSet(this.activeRound.participantIds, latestParticipantIds)) {
+      return;
+    }
+
+    const participants = await this.chainService.getParticipantsWithProfiles(this.activeRound.roundId);
+    this.activeRound.participantIds = [...participants.participantIds];
+    this.activeRound.participants = participants.participants;
+  }
+}
+
+function sameAgentSet(left: readonly bigint[], right: readonly bigint[]) {
+  if (left.length !== right.length) {
+    return false;
+  }
+
+  for (let index = 0; index < left.length; index += 1) {
+    if (left[index] !== right[index]) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+function isIncompleteParticipantProfile(participant: TrackedRoundState["participants"][number]) {
+  return !participant.image
+    || !participant.personality
+    || !participant.tradingStyle
+    || participant.name.startsWith("AGENT-");
 }
