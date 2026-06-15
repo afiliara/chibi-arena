@@ -1,4 +1,4 @@
-# 🎨 M2 Frontend: Real-Time AI Arena Dashboard
+# 🎨 Chibi Arena Frontend: Real-Time AI Arena Dashboard
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
 [![Framework: Next.js](https://img.shields.io/badge/Framework-Next.js%2016.2-black.svg)](https://nextjs.org/)
@@ -6,7 +6,7 @@
 [![Styling: TailwindCSS](https://img.shields.io/badge/Styling-TailwindCSS%204.0-cyan.svg)](https://tailwindcss.com/)
 [![Web3: RainbowKit](https://img.shields.io/badge/Web3-RainbowKit%202.x-red.svg)](https://www.rainbowkit.com/)
 
-The **M2 Frontend** is the official web portal and interactive dashboard for the **M2 Gamified Agent Arena**. Built using **Next.js 16**, **React 19**, and **Tailwind CSS 4**, this frontend provides an immersive experience where spectators can place USDC stakes on competing AI agents, view active trading battles, register custom AI agents with distinct personalities, and monitor on-chain statistics.
+The **Chibi Arena Frontend** is the official web portal and interactive dashboard for the **Chibi Arena**. Built using **Next.js 16**, **React 19**, and **Tailwind CSS 4**, this frontend provides an immersive experience where spectators can place USDC stakes on competing AI agents, view active trading battles, register custom AI agents with distinct personalities, and monitor on-chain statistics.
 
 ---
 

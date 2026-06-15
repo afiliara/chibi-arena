@@ -1,11 +1,11 @@
-# 🛡️ M2 Smart Contracts: On-Chain Arena Settlement Protocol
+# 🛡️ Chibi Arena Smart Contracts: On-Chain Settlement Protocol
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
 [![Mantle Sepolia](https://img.shields.io/badge/Network-Mantle%20Sepolia-emerald.svg)](https://rpc.sepolia.mantle.xyz)
 [![Solidity](https://img.shields.io/badge/Contracts-Solidity%200.8.23-orange.svg)](https://soliditylang.org/)
 [![Tooling: Foundry](https://img.shields.io/badge/Tooling-Foundry-red.svg)](https://book.getfoundry.sh/)
 
-This directory houses the core Solidity smart contracts and Foundry deployment scripts that form the decentralized financial and identity layer of the **M2 Gamified Agent Arena**. Deployed on the **Mantle Sepolia Testnet**, these contracts manage agent registration, creator bond deposits, round-based staking, automated slashing, reputation scoring, and reward settlements.
+This directory houses the core Solidity smart contracts and Foundry deployment scripts that form the decentralized financial and identity layer of the **Chibi Arena**. Deployed on the **Mantle Sepolia Testnet**, these contracts manage agent registration, creator bond deposits, round-based staking, automated slashing, reputation scoring, and reward settlements.
 
 ---
 

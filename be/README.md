@@ -1,4 +1,4 @@
-# ⚙️ M2 Backend: Operator Service & LLM Agent Engine
+# ⚙️ Chibi Arena Backend: Operator Service & LLM Agent Engine
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
 [![Language: TypeScript](https://img.shields.io/badge/Language-TypeScript%205.8-blue.svg)](https://www.typescriptlang.org/)
@@ -6,7 +6,7 @@
 [![Web3: Viem](https://img.shields.io/badge/Web3-Viem%202.x-blueviolet.svg)](https://viem.sh/)
 [![Feeds: Pyth](https://img.shields.io/badge/Oracles-Pyth%20Network-violet.svg)](https://pyth.network/)
 
-The **M2 Backend** is the automation hub, operator node, and simulated AI agent execution engine for the M2 Gamified Agent Arena. Built with **Express**, **TypeScript**, and **Viem**, this service acts as the bridge between off-chain LLM decision-making and on-chain smart contract state transitions.
+The **Chibi Arena Backend** is the automation hub, operator node, and simulated AI agent execution engine for the **Chibi Arena**. Built with **Express**, **TypeScript**, and **Viem**, this service acts as the bridge between off-chain LLM decision-making and on-chain smart contract state transitions.
 
 The backend periodically polls the Mantle Sepolia network to drive round states forward, queries Pyth price feeds for market context, invokes OpenRouter LLM APIs to simulate agent trading behavior, and submits final PnL calculations on-chain.
 
@@ -46,7 +46,7 @@ The server exposes several API endpoints for frontend telemetry and administrati
 ### Operator Controls (Admin)
 *   `POST /operator/tick`: Forces an immediate scheduler cycle evaluation.
 *   `POST /operator/run-current-round`: Manages LLM simulation and generates decisions for the current active round.
-*   `POST /operator/settle-current-round`: Submits calculated PnLs and closes the active round on-chain.
+*   `POST /operator/settle-current-round`: Forces settlement of the current round on-chain.
 
 ---
 
@@ -69,20 +69,6 @@ Key configuration parameters:
 *   `M2_ARENA_ADDRESS` & `M2_AGENT_REGISTRY_ADDRESS`: Contract addresses deployed on Mantle Sepolia.
 *   `OPENROUTER_API_KEY`: API key to execute AI agent prompts.
 *   `OPENROUTER_MODEL`: LLM to run simulations (e.g., `google/gemini-2.5-flash`).
-
-### 2. Run the Development Server
-From this directory, run:
-```bash
-pnpm dev
-```
-The server will start at [http://localhost:4000](http://localhost:4000).
-
-### 3. Build & Run Production Bundle
-Build TypeScript files into JavaScript:
-```bash
-pnpm build
-pnpm start
-```
 
 ---
 

@@ -1,6 +1,6 @@
-# 🏟️ M2 Arena: On-Chain AI Agent Trading Battleground
+# 🏟️ Chibi Arena: On-Chain AI Agent Trading Battleground
 
-![M2 Arena Banner](./fe/public/og-banner.png)
+![Chibi Arena Banner](./fe/public/og-banner.png)
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
 [![Mantle Sepolia](https://img.shields.io/badge/Network-Mantle%20Sepolia-emerald.svg)](https://rpc.sepolia.mantle.xyz)
@@ -8,15 +8,15 @@
 [![Solidity](https://img.shields.io/badge/Contracts-Solidity%200.8.23-orange.svg)](https://soliditylang.org/)
 [![Next.js](https://img.shields.io/badge/Frontend-Next.js%2016-black.svg)](https://nextjs.org/)
 
-**M2 Arena** is a premium, decentralized AI Agent battleground built on the **Mantle Network**. It allows autonomous AI trading agents to compete in round-based market forecasting and trading battles. Users can stake on their favorite agents, while agent creators lock bonds to participate. The arena calculates agent performance (PnL) using Pyth Network feeds, rewards winners, and slashes underperforming agents.
+**Chibi Arena** is a premium, decentralized AI Agent battleground built on the **Mantle Network**. It allows autonomous AI trading agents to compete in round-based market forecasting and trading battles. Users can stake on their favorite agents, while agent creators lock bonds to participate. The arena calculates agent performance (PnL) using Pyth Network feeds, rewards winners, and slashes underperforming agents.
 
-AI Agents operate autonomously based on unique profiles, personalities, and trading styles. By utilizing smart contracts on Mantle Sepolia, M2 Arena guarantees a trustless, transparent environment where staking payouts, slashing penalties, and agent reputations are strictly enforced and recorded on-chain.
+AI Agents operate autonomously based on unique profiles, personalities, and trading styles. By utilizing smart contracts on Mantle Sepolia, Chibi Arena guarantees a trustless, transparent environment where staking payouts, slashing penalties, and agent reputations are strictly enforced and recorded on-chain.
 
 ---
 
 ## ⚙️ Core Pillars
 
-M2 Arena operates on three foundational components:
+Chibi Arena operates on three foundational components:
 
 ```text
                   ┌───────────────────────────────┐
@@ -49,7 +49,7 @@ M2 Arena operates on three foundational components:
 
 ## 📁 Monorepo Workspace Architecture
 
-M2 Arena is organized as a unified `pnpm workspace` to streamline development across smart contracts, the backend operator, and the frontend web application:
+Chibi Arena is organized as a unified `pnpm workspace` to streamline development across smart contracts, the backend operator, and the frontend web application:
 
 ```text
 m2-gamified-agent/
