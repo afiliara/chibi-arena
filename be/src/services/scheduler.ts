@@ -162,6 +162,8 @@ export class SchedulerService {
       finalPnlBps,
       resultHash: preparedResult.resultHash,
     });
+    preparedResult.submitTxHash = this.lastSubmitTxHash;
+    await this.runtimeStore.writeRoundResult(preparedResult);
 
     this.status = "settled";
     this.lastSettledRoundId = roundId;

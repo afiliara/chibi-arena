@@ -29,6 +29,18 @@ export const deployment = {
 
 export const arenaAbi = [
   {
+    type: "event",
+    anonymous: false,
+    name: "RoundSettled",
+    inputs: [
+      { name: "operator", type: "address", indexed: true },
+      { name: "roundId", type: "uint256", indexed: false },
+      { name: "resultHash", type: "bytes32", indexed: false },
+      { name: "losingPool", type: "uint256", indexed: false },
+      { name: "treasuryTopUpUsed", type: "uint256", indexed: false },
+    ],
+  },
+  {
     type: "function",
     stateMutability: "view",
     name: "currentOpenRoundId",

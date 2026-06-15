@@ -34,11 +34,11 @@ export function formatCompactNumber(value?: bigint, decimals = 18, fractionDigit
 
 export function formatCountdown(targetUnixSeconds?: number) {
   if (!targetUnixSeconds) {
-    return "--:--";
+    return "--H --M";
   }
 
   const diff = Math.max(targetUnixSeconds - Math.floor(Date.now() / 1000), 0);
-  const minutes = Math.floor(diff / 60);
-  const seconds = diff % 60;
-  return `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
+  const hours = Math.floor(diff / 3600);
+  const minutes = Math.floor((diff % 3600) / 60);
+  return `${hours}H ${minutes}M`;
 }

@@ -100,6 +100,7 @@ export type BackendRoundResult = {
   endSnapshot: BackendMarketSnapshot;
   agentDecisions: BackendAgentDecision[];
   resultHash: `0x${string}`;
+  submitTxHash?: `0x${string}`;
 };
 
 export type BackendOverview = {
@@ -122,6 +123,23 @@ export async function fetchArenaOverview() {
   }
 
   return response.json() as Promise<BackendOverview>;
+}
+
+export async function fetchArenaRoundResult(roundId: string) {
+  const response = await fetch(`${m2BackendUrl}/round/${roundId}/result`, {
+    cache: "no-store",
+  });
+
+  if (response.status === 404) {
+    return null;
+  }
+
+  if (!response.ok) {
+    throw new Error(`Failed to fetch round ${roundId} result: ${response.status}`);
+  }
+
+  const payload = await response.json() as { ok: true; result: BackendRoundResult };
+  return payload.result;
 }
 
 export function resolveAgentSprite(input: {

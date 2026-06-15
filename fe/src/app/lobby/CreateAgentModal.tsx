@@ -67,7 +67,7 @@ export default function CreateAgentModal({
 
   const [avatar, setAvatar] = useState(0);
   const [style, setStyle] = useState(0);
-  const [name, setName] = useState("BLITZ-X");
+  const [name, setName] = useState("");
   const [status, setStatus] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
@@ -214,7 +214,7 @@ export default function CreateAgentModal({
             <div className="flex flex-col" style={{ padding: 16, gap: 17 }}>
               <div>
                 <FieldLabel num="1">AGENT NAME</FieldLabel>
-                <input className="font-press" type="text" maxLength={14} value={name} onChange={(event) => setName(event.target.value.toUpperCase())} style={{ width: "100%", fontSize: 14, color: "#3a2e63", background: "#fff", border: "3px solid #cfc4a6", borderRadius: 11, padding: "13px 14px", outline: "none" }} />
+                <input className="font-press" type="text" maxLength={14} value={name} placeholder="TYPE AGENT NAME" onChange={(event) => setName(event.target.value.toUpperCase())} style={{ width: "100%", fontSize: 14, color: "#3a2e63", background: "#fff", border: "3px solid #cfc4a6", borderRadius: 11, padding: "13px 14px", outline: "none" }} />
               </div>
 
               <div>

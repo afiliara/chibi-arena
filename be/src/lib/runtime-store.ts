@@ -64,6 +64,7 @@ export class RuntimeStore {
         rank: decision.rank,
       })),
       resultHash: result.resultHash,
+      submitTxHash: result.submitTxHash,
     };
 
     await writeFile(filePath, JSON.stringify(serialized, null, 2), "utf8");
@@ -91,6 +92,7 @@ export class RuntimeStore {
           rank: decision.rank,
         })),
         resultHash: parsed.resultHash,
+        submitTxHash: parsed.submitTxHash,
       };
     } catch (error) {
       if (isMissingFileError(error)) {

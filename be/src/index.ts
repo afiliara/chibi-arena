@@ -177,12 +177,16 @@ async function enrichRoundResult(
     ? Exclude<T, null>
     : never,
 ) {
+  const settlementTxHash = result.submitTxHash ?? await chainService.getRoundSettlementTxHash(roundId).catch(() => null);
   const shouldHydrateProfiles = result.agentDecisions.some((decision) =>
     !decision.image || !decision.personality || !decision.tradingStyle
   );
 
   if (!shouldHydrateProfiles) {
-    return result;
+    return {
+      ...result,
+      submitTxHash: settlementTxHash ?? undefined,
+    };
   }
 
   const profiles = await chainService.getParticipantsWithProfiles(roundId);
@@ -192,6 +196,7 @@ async function enrichRoundResult(
 
   return {
     ...result,
+    submitTxHash: settlementTxHash ?? undefined,
     agentDecisions: result.agentDecisions.map((decision) => {
       const profile = profileByAgentId.get(decision.agentId.toString());
       if (!profile) {

@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { ConnectButton } from "@rainbow-me/rainbowkit";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useRouter } from "next/navigation";
 import {
   useAccount,
   usePublicClient,
@@ -18,6 +19,7 @@ import {
   mockUsdcAbi,
 } from "@/lib/contracts";
 import {
+  fetchArenaRoundResult,
   fetchArenaOverview,
   resolveAgentAccent,
   resolveAgentSprite,
@@ -89,7 +91,43 @@ const ARENA_SLOTS = [
   { left: "40%", bottom: "52%", z: 7 },  // front-center
 ] as const;
 
+const SIDE_PANEL_HEIGHT = 486;
+
 export default function ArenaPage() {
+  const router = useRouter();
+  const { data: overview, isLoading, error } = useQuery({
+    queryKey: ["m2", "overview"],
+    queryFn: fetchArenaOverview,
+    refetchInterval: 5_000,
+  });
+
+  useEffect(() => {
+    const targetRoundId =
+      overview?.currentRound?.roundId
+      ?? overview?.latestSettledRoundId
+      ?? overview?.latestResult?.roundId
+      ?? null;
+
+    if (targetRoundId) {
+      router.replace(`/arena/${targetRoundId}`);
+    }
+  }, [overview, router]);
+
+  return (
+    <ArenaRouteShell
+      title={error ? "ARENA UNAVAILABLE" : "LOADING ARENA"}
+      subtitle={
+        error
+          ? (error instanceof Error ? error.message : "Failed to resolve arena route.")
+          : isLoading
+            ? "Resolving the active or latest round..."
+            : "Redirecting to the requested round..."
+      }
+    />
+  );
+}
+
+export function ArenaView({ forcedRoundId }: { forcedRoundId?: string }) {
   const scalerRef = useRef<HTMLDivElement>(null);
   const queryClient = useQueryClient();
   const { address, isConnected } = useAccount();
@@ -106,13 +144,28 @@ export default function ArenaPage() {
     refetchInterval: 5_000,
   });
 
-  const currentRound = overview?.currentRound ?? null;
+  const requestedRoundId = forcedRoundId ?? null;
+  const liveRound = overview?.currentRound ?? null;
   const liveMarketSnapshot = overview?.liveMarketSnapshot ?? null;
   const latestResult = overview?.latestResult ?? null;
-  const featuredRoundId = currentRound?.roundId ?? latestResult?.roundId ?? null;
+  const isViewingCurrentRound = Boolean(liveRound && requestedRoundId === liveRound.roundId);
+  const { data: requestedRoundResult } = useQuery({
+    queryKey: ["m2", "round-result", requestedRoundId],
+    queryFn: () => fetchArenaRoundResult(requestedRoundId!),
+    enabled: Boolean(requestedRoundId) && !isViewingCurrentRound,
+    refetchInterval: 15_000,
+  });
+
+  const currentRound = isViewingCurrentRound ? liveRound : null;
+  const settledResult = currentRound
+    ? null
+    : requestedRoundId
+      ? (requestedRoundResult ?? (latestResult?.roundId === requestedRoundId ? latestResult : null))
+      : latestResult;
+  const featuredRoundId = requestedRoundId ?? currentRound?.roundId ?? settledResult?.roundId ?? null;
   const featuredRoundIdBigInt = featuredRoundId ? BigInt(featuredRoundId) : undefined;
   const isRoundOpen = Boolean(currentRound);
-  const isRoundSettled = !currentRound && Boolean(latestResult);
+  const isRoundSettled = !currentRound && Boolean(settledResult);
 
   const { data: featuredRoundRaw } = useReadContract({
     address: m2Deployment.arena,
@@ -143,11 +196,11 @@ export default function ArenaPage() {
     if (currentRound) {
       return currentRound.participantIds.map((agentId) => BigInt(agentId));
     }
-    if (latestResult) {
-      return latestResult.agentDecisions.map((agent) => BigInt(agent.agentId));
+    if (settledResult) {
+      return settledResult.agentDecisions.map((agent) => BigInt(agent.agentId));
     }
     return [] as bigint[];
-  }, [onChainParticipantIds, currentRound, latestResult]);
+  }, [onChainParticipantIds, currentRound, settledResult]);
 
   const { data: participantStates = [] } = useReadContracts({
     contracts: featuredRoundIdBigInt
@@ -210,12 +263,12 @@ export default function ArenaPage() {
   >();
   currentRound?.participants.forEach((participant) => metadataSource.set(participant.agentId, participant));
   currentRound?.previewDecisions.forEach((decision) => metadataSource.set(decision.agentId, decision));
-  latestResult?.agentDecisions.forEach((decision) => metadataSource.set(decision.agentId, decision));
+  settledResult?.agentDecisions.forEach((decision) => metadataSource.set(decision.agentId, decision));
 
   const rows = participantIds.map((agentId, index) => {
     const state = participantStates[index]?.result as RoundAgentStateTuple | undefined;
     const meta = metadataSource.get(agentId.toString());
-    const latestDecision = latestResult?.agentDecisions.find((decision) => decision.agentId === agentId.toString());
+    const latestDecision = settledResult?.agentDecisions.find((decision) => decision.agentId === agentId.toString());
     const previewDecision = previewDecisionByAgentId.get(agentId.toString());
     const rank = latestDecision?.rank
       ?? previewDecision?.previewRank
@@ -374,8 +427,8 @@ export default function ArenaPage() {
     }
   }
 
-  const marketStart = currentRound?.startSnapshot ?? latestResult?.startSnapshot ?? null;
-  const marketEnd = liveMarketSnapshot ?? currentRound?.latestSnapshot ?? latestResult?.endSnapshot ?? marketStart;
+  const marketStart = currentRound?.startSnapshot ?? settledResult?.startSnapshot ?? null;
+  const marketEnd = liveMarketSnapshot ?? currentRound?.latestSnapshot ?? settledResult?.endSnapshot ?? marketStart;
   const marketRows = (["BTC", "ETH", "SOL"] as const).map((symbol) => {
     const start = marketStart?.prices[symbol].price ?? 0;
     const end = marketEnd?.prices[symbol].price ?? start;
@@ -389,8 +442,8 @@ export default function ArenaPage() {
     };
   });
 
-  const liveFeed = latestResult
-    ? latestResult.agentDecisions.map((decision, index) => ({
+  const liveFeed = settledResult
+    ? settledResult.agentDecisions.map((decision, index) => ({
         key: `${decision.agentId}-${decision.rank}`,
         agent: decision.name,
         agentColor: resolveAgentAccent({
@@ -423,7 +476,7 @@ export default function ArenaPage() {
         time: "TRACKING",
       })) ?? [];
 
-  const activeLiveFeed = latestResult
+  const activeLiveFeed = settledResult
     ? liveFeed
     : currentRound?.previewDecisions.map((decision, index) => ({
         key: `${decision.agentId}-${decision.previewRank}`,
@@ -534,8 +587,16 @@ export default function ArenaPage() {
           </div>
 
           <div style={{ display: "grid", gridTemplateColumns: "300px 1fr 300px", gap: 16, alignItems: "stretch" }}>
-            <Panel title="LIVE FEED">
-              <div style={{ overflowY: "auto", flex: 1 }}>
+            <Panel title="LIVE FEED" style={{ height: SIDE_PANEL_HEIGHT }}>
+              <div
+                style={{
+                  overflowY: "auto",
+                  flex: 1,
+                  minHeight: 0,
+                  maxHeight: 620,
+                  scrollbarGutter: "stable",
+                }}
+              >
                 {activeLiveFeed.map((feed, index) => (
                     <div key={feed.key} className="flex" style={{ gap: 12, padding: "13px 15px", borderBottom: index < activeLiveFeed.length - 1 ? "2px solid #e2d9c2" : "none" }}>
                     <div style={{ width: 46, height: 46, flexShrink: 0, borderRadius: "50%", background: "#fff", border: "3px solid #d9cfb6", overflow: "hidden", display: "grid", placeItems: "center" }}>
@@ -635,8 +696,19 @@ export default function ArenaPage() {
               })}
             </div>
 
-            <Panel title="LEADERBOARD">
-              <div style={{ display: "flex", flexDirection: "column", padding: "6px 0", overflowY: "auto", flex: 1 }}>
+            <Panel title="LEADERBOARD" style={{ height: SIDE_PANEL_HEIGHT }}>
+              <div
+                style={{
+                  display: "flex",
+                  flexDirection: "column",
+                  padding: "6px 0",
+                  overflowY: "auto",
+                  flex: 1,
+                  minHeight: 0,
+                  maxHeight: 252,
+                  scrollbarGutter: "stable",
+                }}
+              >
                 {rows.map((row, index) => {
                   const isSelected = selectedRow?.agentId === row.agentId;
                   return (
@@ -760,7 +832,7 @@ export default function ArenaPage() {
                 </div>
                 <div className="font-silk" style={{ fontSize: 11, color: "#9a8f6e", fontWeight: 700, textAlign: "center" }}>
                   {currentRound
-                    ? "Backend is tracking the open round and waiting for settlement time."
+                    ? "The arena is live and locking in moves before settlement."
                     : latestResult
                       ? "Latest round has settled. Claims are now available for winners."
                       : "No tracked round found yet."}
@@ -772,8 +844,7 @@ export default function ArenaPage() {
               <div className="flex items-center" style={{ gap: 18, height: "calc(100% - 28px)" }}>
                 <div className="flex flex-col" style={{ gap: 6 }}>
                   <span className="font-press" style={{ fontSize: 8, color: "#9a8f6e", letterSpacing: ".5px" }}>POOL</span>
-                  <div className="font-press flex items-center" style={{ gap: 7, fontSize: 13, color: "#e08a12" }}>
-                    <img src="/mantle-logo.png" alt="" style={{ width: 20, height: 20, imageRendering: "pixelated" }} />
+                  <div className="font-press" style={{ fontSize: 13, color: "#e08a12" }}>
                     {formatCompactNumber(prizePool)}
                   </div>
                 </div>
@@ -803,7 +874,9 @@ export default function ArenaPage() {
               }}
               onClick={() =>
                 window.open(
-                  mantleSepoliaExplorerUrl,
+                  latestResult?.submitTxHash
+                    ? `${mantleSepoliaExplorerUrl}/tx/${latestResult.submitTxHash}`
+                    : `${mantleSepoliaExplorerUrl}/address/${m2Deployment.arena}`,
                   "_blank",
                   "noopener,noreferrer",
                 )
@@ -822,13 +895,29 @@ export default function ArenaPage() {
   );
 }
 
-function Panel({ title, children }: { title: string; children: ReactNode }) {
+function Panel({
+  title,
+  children,
+  style,
+}: {
+  title: string;
+  children: ReactNode;
+  style?: React.CSSProperties;
+}) {
   return (
-    <div style={{
-      background: "#f4efe0", border: "4px solid #4a2ea0", borderRadius: 16,
-      overflow: "hidden", display: "flex", flexDirection: "column",
-      boxShadow: "0 8px 0 rgba(74,46,160,.25), 0 14px 26px rgba(50,30,110,.22)",
-    }}>
+    <div
+      style={{
+        background: "#f4efe0",
+        border: "4px solid #4a2ea0",
+        borderRadius: 16,
+        overflow: "hidden",
+        display: "flex",
+        flexDirection: "column",
+        minHeight: 0,
+        boxShadow: "0 8px 0 rgba(74,46,160,.25), 0 14px 26px rgba(50,30,110,.22)",
+        ...style,
+      }}
+    >
       <div className="font-press" style={{
         background: "linear-gradient(180deg,#8a5fe0 0%,#6a44c9 100%)",
         padding: "12px 16px", fontSize: 13, color: "#fff",
@@ -836,6 +925,61 @@ function Panel({ title, children }: { title: string; children: ReactNode }) {
         borderBottom: "3px solid #4a2ea0", flexShrink: 0,
       }}>{title}</div>
       {children}
+    </div>
+  );
+}
+
+function ArenaRouteShell({
+  title,
+  subtitle,
+}: {
+  title: string;
+  subtitle: string;
+}) {
+  return (
+    <div
+      className="font-silk flex justify-center items-center min-h-screen"
+      style={{
+        color: "#2a2150",
+        WebkitFontSmoothing: "none",
+        padding: "18px 14px 40px",
+        background: "radial-gradient(130% 90% at 50% 0%, #a9e0fb 0%, #8fd0f4 38%, #9bd6c6 78%, #8fc99f 100%)",
+      }}
+    >
+      <div
+        style={{
+          width: 540,
+          background: "#f4efe0",
+          border: "4px solid #4a2ea0",
+          borderRadius: 18,
+          padding: "28px 30px",
+          boxShadow: "0 8px 0 rgba(74,46,160,.25), 0 14px 26px rgba(50,30,110,.22)",
+        }}
+      >
+        <div
+          className="font-press"
+          style={{
+            fontSize: 20,
+            color: "#6a44c9",
+            letterSpacing: 1,
+            textShadow: "0 2px 0 rgba(74,46,160,.18)",
+          }}
+        >
+          {title}
+        </div>
+        <div
+          className="font-silk"
+          style={{
+            marginTop: 12,
+            fontSize: 14,
+            color: "#5f547f",
+            fontWeight: 700,
+            lineHeight: 1.55,
+          }}
+        >
+          {subtitle}
+        </div>
+      </div>
     </div>
   );
 }

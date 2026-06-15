@@ -34,3 +34,5 @@ Last updated: 2026-06-14
 
 - Semua perubahan scope besar harus diperbarui di file ini dulu
 - Task yang selesai akan ditandai/dihapus bertahap setelah milestone benar-benar kelar
+- Final FE polish berjalan: arena live feed sudah memakai viewport scroll tetap dan leaderboard sekarang menampilkan viewport top 3 dengan scroll untuk ranking sisanya
+- Final FE polish diperluas: arena sekarang mendukung deep-link round spesifik lewat `/arena/[roundId]`, sementara `/arena` otomatis resolve ke round open atau settled terbaru

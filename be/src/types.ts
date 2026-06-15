@@ -106,6 +106,7 @@ export type PreparedRoundResult = {
   endSnapshot: MarketSnapshot;
   agentDecisions: AgentRoundResult[];
   resultHash: `0x${string}`;
+  submitTxHash?: `0x${string}`;
 };
 
 export type PersistedRuntimeState = {
@@ -178,4 +179,5 @@ export type SerializedPreparedRoundResult = {
     rank: number;
   }>;
   resultHash: `0x${string}`;
+  submitTxHash?: `0x${string}`;
 };

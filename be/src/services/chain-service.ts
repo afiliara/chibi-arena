@@ -1,4 +1,4 @@
-import { createPublicClient, createWalletClient, http } from "viem";
+import { createPublicClient, createWalletClient, http, keccak256, stringToHex } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 
 import { config } from "../config.js";
@@ -128,6 +128,15 @@ export class ChainService {
       const agentUri = uriResults[index];
       const metadata = metadataResults[index];
 
+      const housePersonality = resolveHouseDefault(configHash, "personality");
+      const houseTradingStyle = resolveHouseDefault(configHash, "tradingStyle");
+      const personality = metadata.personality && metadata.personality !== "HOUSE"
+        ? metadata.personality
+        : housePersonality ?? metadata.personality ?? (isHouseAgent ? "HOUSE" : "CUSTOM");
+      const tradingStyle = metadata.tradingStyle && metadata.tradingStyle !== "Adaptive"
+        ? metadata.tradingStyle
+        : houseTradingStyle ?? metadata.tradingStyle ?? "Adaptive";
+
       return {
         agentId,
         owner,
@@ -138,10 +147,10 @@ export class ChainService {
         lastJoinedRoundId,
         lastSettledRoundId,
         agentUri,
-        image: metadata.image,
-        name: metadata.name ?? `AGENT-${agentId.toString()}`,
-        personality: metadata.personality ?? (isHouseAgent ? "HOUSE" : "CUSTOM"),
-        tradingStyle: metadata.tradingStyle ?? "Adaptive",
+        image: resolveHouseDefault(configHash, "image") ?? metadata.image,
+        name: resolveHouseDefault(configHash, "name") ?? metadata.name ?? `AGENT-${agentId.toString()}`,
+        personality,
+        tradingStyle,
       } satisfies AgentProfile;
     });
 
@@ -178,6 +187,31 @@ export class ChainService {
     });
     await this.publicClient.waitForTransactionReceipt({ hash });
     return hash;
+  }
+
+  async getRoundSettlementTxHash(roundId: bigint) {
+    const latestBlock = await this.publicClient.getBlockNumber();
+    const fromBlock = latestBlock > 10_000n ? latestBlock - 10_000n : 0n;
+    const logs = await this.publicClient.getLogs({
+      address: deployment.arena,
+      event: {
+        type: "event",
+        anonymous: false,
+        name: "RoundSettled",
+        inputs: [
+          { name: "operator", type: "address", indexed: true },
+          { name: "roundId", type: "uint256", indexed: false },
+          { name: "resultHash", type: "bytes32", indexed: false },
+          { name: "losingPool", type: "uint256", indexed: false },
+          { name: "treasuryTopUpUsed", type: "uint256", indexed: false },
+        ],
+      },
+      fromBlock,
+      toBlock: latestBlock,
+    });
+
+    const matchedLog = [...logs].reverse().find((log) => log.args.roundId === roundId);
+    return matchedLog?.transactionHash ?? null;
   }
 }
 
@@ -238,4 +272,44 @@ function isAttributeRecord(value: unknown): value is { trait_type: string; value
   return typeof value === "object" && value !== null
     && typeof (value as { trait_type?: unknown }).trait_type === "string"
     && typeof (value as { value?: unknown }).value === "string";
+}
+
+function resolveHouseDefault(
+  configHash: `0x${string}`,
+  field: "name" | "image" | "personality" | "tradingStyle",
+) {
+  const normalized = configHash.toLowerCase();
+  const mapping = HOUSE_AGENT_DEFAULTS[normalized];
+  return mapping?.[field];
+}
+
+const HOUSE_AGENT_DEFAULTS = {
+  [toHouseConfigHash("BLITZ")]: {
+    name: "BLITZ",
+    image: "/blitz.png",
+    personality: "AGGRESSIVE",
+    tradingStyle: "Momentum Raider",
+  },
+  [toHouseConfigHash("NOVA")]: {
+    name: "NOVA",
+    image: "/nova.png",
+    personality: "MOMENTUM",
+    tradingStyle: "Breakout Hunter",
+  },
+  [toHouseConfigHash("BYTE")]: {
+    name: "BYTE",
+    image: "/byte.png",
+    personality: "ANALYST",
+    tradingStyle: "Mean Reversion Analyst",
+  },
+  [toHouseConfigHash("ZENITH")]: {
+    name: "ZENITH",
+    image: "/zenith.png",
+    personality: "CONSERVATIVE",
+    tradingStyle: "Capital Preserver",
+  },
+} as const satisfies Record<string, Record<string, string>>;
+
+function toHouseConfigHash(label: string) {
+  return keccak256(stringToHex(label)).toLowerCase();
 }

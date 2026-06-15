@@ -18,9 +18,11 @@ import { formatToken } from "@/lib/format";
 type ArenaCard = {
   key: string;
   status: "live" | "settled" | "idle";
+  roundId: string | null;
   title: string;
   subtitle: string;
   resultHash?: `0x${string}`;
+  submitTxHash?: `0x${string}`;
   fighterLeft: string;
   fighterRight: string;
   accent: string;
@@ -141,6 +143,7 @@ export default function LobbyPage() {
       cards.push({
         key: `current-${overview.currentRound.roundId}`,
         status: "live",
+        roundId: overview.currentRound.roundId,
         title: `CRYSTAL COLISEUM · ROUND ${overview.currentRound.roundId}`,
         subtitle: "Live round open for staking and new agent admission.",
         fighterLeft: resolveAgentSprite({
@@ -167,9 +170,11 @@ export default function LobbyPage() {
       cards.push({
         key: `settled-${overview.latestResult.roundId}`,
         status: "settled",
+        roundId: overview.latestResult.roundId,
         title: `ROUND ${overview.latestResult.roundId} SETTLED`,
         subtitle: `Latest winner: ${overview.latestResult.agentDecisions[0]?.name ?? "Unknown"} · settlement locked on-chain.`,
         resultHash: overview.latestResult.resultHash,
+        submitTxHash: overview.latestResult.submitTxHash,
         fighterLeft: resolveAgentSprite({
           image: latestDecisions[0]?.image,
           personality: latestDecisions[0]?.personality,
@@ -194,6 +199,7 @@ export default function LobbyPage() {
       cards.push({
         key: "idle",
         status: "idle",
+        roundId: null,
         title: "WAITING FOR OPERATOR",
         subtitle: "Seed a demo round from the backend to activate live SC + BE flows.",
         fighterLeft: "/blitz.png",
@@ -239,15 +245,13 @@ export default function LobbyPage() {
               <button
                 onClick={handleClaimFaucet}
                 disabled={isPending}
-                className="flex items-center"
+                className="flex items-center justify-center"
                 style={{
-                  gap: 9,
                   ...curSt,
                   cursor: isPending ? "not-allowed" : "pointer",
                   opacity: isPending ? 0.7 : 1,
                 }}
               >
-                <img src="/mantle-logo.png" alt="" style={{ width: 24, height: 24, imageRendering: "pixelated" }} />
                 <span className="font-press" style={{ fontSize: 12, color: "#fff", letterSpacing: ".5px" }}>
                   {isPending ? "CLAIMING..." : "CLAIM FAUCET"}
                 </span>
@@ -322,9 +326,9 @@ export default function LobbyPage() {
                   <div className="font-silk" style={{ fontSize: 12, fontWeight: 700, color: "#5f547f", lineHeight: 1.5 }}>
                     {arena.subtitle}
                   </div>
-                  {arena.resultHash ? (
+                  {arena.submitTxHash ? (
                     <a
-                      href={`${mantleSepoliaExplorerUrl}/search?f=0&q=${arena.resultHash}`}
+                      href={`${mantleSepoliaExplorerUrl}/tx/${arena.submitTxHash}`}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="font-press"
@@ -337,7 +341,26 @@ export default function LobbyPage() {
                         width: "fit-content",
                       }}
                     >
-                      HASH {arena.resultHash.slice(0, 10)}...{arena.resultHash.slice(-6)}
+                      TX {arena.submitTxHash.slice(0, 10)}...{arena.submitTxHash.slice(-6)}
+                    </a>
+                  ) : null}
+                  {arena.resultHash ? (
+                    <a
+                      href={`${mantleSepoliaExplorerUrl}/address/${m2Deployment.arena}#readContract`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="font-press"
+                      style={{
+                        fontSize: 8,
+                        color: "#8e83ad",
+                        letterSpacing: ".35px",
+                        textDecoration: "underline",
+                        textUnderlineOffset: 3,
+                        width: "fit-content",
+                      }}
+                      title={`Check round ${arena.roundId ?? "?"} result hash on-chain in the M2Arena contract`}
+                    >
+                      RESULT {arena.resultHash.slice(0, 10)}...{arena.resultHash.slice(-6)}
                     </a>
                   ) : null}
 
@@ -358,7 +381,7 @@ export default function LobbyPage() {
                   </div>
 
                   <button
-                    onClick={() => (window.location.href = "/arena")}
+                    onClick={() => (window.location.href = arena.roundId ? `/arena/${arena.roundId}` : "/arena")}
                     className="font-press flex items-center justify-center"
                     style={{
                       width: "100%",

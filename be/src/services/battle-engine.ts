@@ -97,10 +97,12 @@ export class BattleEngine {
   }): Promise<AgentRoundResult[]> {
     const agentDecisions = await Promise.all(
       input.participants.map(async (participant) => {
-        const decision = await this.openRouterService.generateDecision(
+        const decision = await generateArenaDecision(
           participant,
           input.roundId,
+          input.startSnapshot,
           input.snapshotForReasoning,
+          this.openRouterService,
         );
         return {
           participant,
@@ -130,6 +132,134 @@ export class BattleEngine {
         rank: index + 1,
       }));
   }
+}
+
+async function generateArenaDecision(
+  participant: AgentProfile,
+  roundId: bigint,
+  startSnapshot: MarketSnapshot,
+  currentSnapshot: MarketSnapshot,
+  openRouterService: OpenRouterService,
+): Promise<AgentDecision> {
+  const houseProfile = resolveHouseStrategyProfile(participant);
+  if (!houseProfile) {
+    return openRouterService.generateDecision(participant, roundId, currentSnapshot);
+  }
+
+  return buildHouseDecision(houseProfile, startSnapshot, currentSnapshot);
+}
+
+function resolveHouseStrategyProfile(participant: AgentProfile) {
+  const key = participant.configHash.toLowerCase();
+  if (key === keccak256(stringToHex("BLITZ")).toLowerCase() || participant.name.toUpperCase() === "BLITZ") {
+    return "BLITZ" as const;
+  }
+  if (key === keccak256(stringToHex("NOVA")).toLowerCase() || participant.name.toUpperCase() === "NOVA") {
+    return "NOVA" as const;
+  }
+  if (key === keccak256(stringToHex("BYTE")).toLowerCase() || participant.name.toUpperCase() === "BYTE") {
+    return "BYTE" as const;
+  }
+  if (key === keccak256(stringToHex("ZENITH")).toLowerCase() || participant.name.toUpperCase() === "ZENITH") {
+    return "ZENITH" as const;
+  }
+  return null;
+}
+
+function buildHouseDecision(
+  houseProfile: "BLITZ" | "NOVA" | "BYTE" | "ZENITH",
+  startSnapshot: MarketSnapshot,
+  currentSnapshot: MarketSnapshot,
+): AgentDecision {
+  const changes = getAssetChanges(startSnapshot, currentSnapshot);
+  const strongest = changes[0];
+  const weakest = changes[changes.length - 1];
+  const positives = changes.filter((change) => change.changePct > 0);
+  const negatives = changes.filter((change) => change.changePct < 0);
+  const secondStrongest = changes[1] ?? strongest;
+
+  switch (houseProfile) {
+    case "BLITZ": {
+      const target = [...changes].sort((left, right) => Math.abs(right.changePct) - Math.abs(left.changePct))[0];
+      const action = target.changePct >= 0 ? "LONG" : "SHORT";
+      return {
+        action,
+        asset: target.symbol,
+        confidence: toConfidence(Math.abs(target.changePct), 68, 28),
+        rationale: `Aggressive momentum locks onto ${target.symbol} after the sharpest ${target.changePct >= 0 ? "upside" : "downside"} burst of the round.`,
+      };
+    }
+    case "NOVA": {
+      const target = positives[1]
+        ?? positives.find((change) => change.symbol === "ETH")
+        ?? positives.find((change) => change.symbol === "BTC")
+        ?? positives[0]
+        ?? (negatives[0] ?? strongest);
+      const action = positives.length > 0 ? "LONG" : "SHORT";
+      return {
+        action,
+        asset: target.symbol,
+        confidence: toConfidence(Math.abs(target.changePct), 60, 24),
+        rationale: `Breakout rotation shifts into ${target.symbol} as NOVA hunts the next expansion lane behind the first mover.`,
+      };
+    }
+    case "BYTE": {
+      const target = strongest.changePct > 0 ? strongest : weakest.changePct < 0 ? weakest : secondStrongest;
+      const action = strongest.changePct > 0 ? "SHORT" : weakest.changePct < 0 ? "LONG" : "HOLD";
+      return {
+        action,
+        asset: target.symbol,
+        confidence: action === "HOLD" ? 48 : toConfidence(Math.abs(target.changePct), 58, 20),
+        rationale: action === "HOLD"
+          ? `Mean-reversion signals are weak, so BYTE stays patient while dispersion remains compressed.`
+          : `Analyst mode fades the most stretched ${target.symbol} move, expecting reversion after an overextended impulse.`,
+      };
+    }
+    case "ZENITH": {
+      const majors = changes.filter((change) => change.symbol !== "SOL");
+      const safestPositive = [...majors].sort((left, right) => left.changePct - right.changePct).find((change) => change.changePct > 0);
+      const safestNegative = [...majors].sort((left, right) => right.changePct - left.changePct).find((change) => change.changePct < 0);
+      if (!safestPositive && !safestNegative) {
+        return {
+          action: "HOLD",
+          asset: "BTC",
+          confidence: 42,
+          rationale: "Defensive posture stays flat while major assets fail to offer a clean low-risk edge.",
+        };
+      }
+
+      if (safestPositive && Math.abs(safestPositive.changePct) >= 0.08) {
+        return {
+          action: "LONG",
+          asset: safestPositive.symbol,
+          confidence: toConfidence(Math.abs(safestPositive.changePct), 52, 16),
+          rationale: `Conservative capital rotates into ${safestPositive.symbol}, taking the steadiest major-asset uptrend on the board.`,
+        };
+      }
+
+      return {
+        action: "SHORT",
+        asset: (safestNegative ?? weakest).symbol,
+        confidence: toConfidence(Math.abs((safestNegative ?? weakest).changePct), 50, 16),
+        rationale: `Risk-off mode leans short ${(safestNegative ?? weakest).symbol} as ZENITH protects capital against the softest major trend.`,
+      };
+    }
+  }
+}
+
+function getAssetChanges(startSnapshot: MarketSnapshot, currentSnapshot: MarketSnapshot) {
+  return (["BTC", "ETH", "SOL"] as const)
+    .map((symbol) => {
+      const start = startSnapshot.prices[symbol].price;
+      const current = currentSnapshot.prices[symbol].price;
+      const changePct = start > 0 ? ((current - start) / start) * 100 : 0;
+      return { symbol, changePct };
+    })
+    .sort((left, right) => right.changePct - left.changePct);
+}
+
+function toConfidence(changePctAbs: number, base: number, scaler: number) {
+  return Math.max(35, Math.min(95, Math.round(base + changePctAbs * scaler)));
 }
 
 function computePnlBps(
