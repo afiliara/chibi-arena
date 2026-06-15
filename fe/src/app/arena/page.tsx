@@ -75,6 +75,20 @@ type ArenaRow = {
 
 const RANK_COLORS = ["#f2b50e", "#b9c0cc", "#e07e2a", "#7e6bd0", "#d05a5a"] as const;
 
+// 8 fixed platform slots arranged in an oval ring matching the arena background
+const ARENA_SLOTS = [
+  { left: "20%", bottom: "18%", z: 6 },  // front-left
+  { left: "40%", bottom: "9%",  z: 8 },  // front-center-left
+  { left: "60%", bottom: "9%",  z: 8 },  // front-center-right
+  { left: "80%", bottom: "18%", z: 6 },  // front-right
+  { left: "70%", bottom: "31%", z: 4 },  // mid-right
+  { left: "80%", bottom: "46%", z: 2 },  // back-right
+  { left: "60%", bottom: "52%", z: 1 },  // back-center
+  { left: "20%", bottom: "46%", z: 2 },  // back-left
+  { left: "30%", bottom: "31%", z: 4 },  // mid-left
+  { left: "40%", bottom: "52%", z: 7 },  // front-center
+] as const;
+
 export default function ArenaPage() {
   const scalerRef = useRef<HTMLDivElement>(null);
   const queryClient = useQueryClient();
@@ -110,7 +124,22 @@ export default function ArenaPage() {
     },
   });
 
+  const { data: onChainParticipantIds } = useReadContract({
+    address: m2Deployment.arena,
+    abi: arenaAbi,
+    functionName: "getRoundParticipants",
+    args: featuredRoundIdBigInt ? [featuredRoundIdBigInt] : undefined,
+    query: {
+      enabled: Boolean(featuredRoundIdBigInt),
+      refetchInterval: 5_000,
+    },
+  });
+
   const participantIds = useMemo(() => {
+    // Always prefer on-chain list — it's always complete even if backend lags
+    if (onChainParticipantIds && onChainParticipantIds.length > 0) {
+      return [...onChainParticipantIds] as bigint[];
+    }
     if (currentRound) {
       return currentRound.participantIds.map((agentId) => BigInt(agentId));
     }
@@ -118,7 +147,7 @@ export default function ArenaPage() {
       return latestResult.agentDecisions.map((agent) => BigInt(agent.agentId));
     }
     return [] as bigint[];
-  }, [currentRound, latestResult]);
+  }, [onChainParticipantIds, currentRound, latestResult]);
 
   const { data: participantStates = [] } = useReadContracts({
     contracts: featuredRoundIdBigInt
@@ -169,7 +198,7 @@ export default function ArenaPage() {
     window.addEventListener("resize", fit);
     fit();
     return () => window.removeEventListener("resize", fit);
-  }, []);
+  }, [participantIds.length]);
 
   const featuredRound = featuredRoundRaw as RoundTuple | undefined;
   const previewDecisionByAgentId = new Map(
@@ -361,7 +390,7 @@ export default function ArenaPage() {
   });
 
   const liveFeed = latestResult
-    ? latestResult.agentDecisions.slice(0, 4).map((decision, index) => ({
+    ? latestResult.agentDecisions.map((decision, index) => ({
         key: `${decision.agentId}-${decision.rank}`,
         agent: decision.name,
         agentColor: resolveAgentAccent({
@@ -377,7 +406,7 @@ export default function ArenaPage() {
         msg: `${decision.decision.action} ${decision.decision.asset} • ${decision.decision.rationale}`,
         time: `RANK ${decision.rank}`,
       }))
-    : currentRound?.participants.slice(0, 4).map((participant, index) => ({
+    : currentRound?.participants.map((participant, index) => ({
         key: `${participant.agentId}-${index}`,
         agent: participant.name,
         agentColor: resolveAgentAccent({
@@ -396,7 +425,7 @@ export default function ArenaPage() {
 
   const activeLiveFeed = latestResult
     ? liveFeed
-    : currentRound?.previewDecisions.slice(0, 4).map((decision, index) => ({
+    : currentRound?.previewDecisions.map((decision, index) => ({
         key: `${decision.agentId}-${decision.previewRank}`,
         agent: decision.name,
         agentColor: resolveAgentAccent({
@@ -529,32 +558,81 @@ export default function ArenaPage() {
               border: "4px solid #4a2ea0", borderRadius: 18,
               overflow: "hidden",
               aspectRatio: "1448/1086",
+              alignSelf: "start",
               backgroundImage: "url('/arena-battle-bg.png')",
               backgroundSize: "cover",
               backgroundPosition: "center",
               boxShadow: "0 8px 0 rgba(74,46,160,.25), 0 16px 30px rgba(50,30,110,.28), inset 0 0 0 3px rgba(255,255,255,.12)",
             }}>
-              <div style={{ position: "absolute", width: "22%", left: "15%", bottom: "30%" }}>
-                <div style={{ position: "absolute", left: "50%", transform: "translateX(-50%)", bottom: "92%", display: "flex", flexDirection: "column", alignItems: "center", gap: 3, background: "rgba(36,24,70,.86)", border: "3px solid #fff", borderRadius: 11, padding: "7px 14px", whiteSpace: "nowrap", boxShadow: "0 4px 0 rgba(20,10,50,.4)" }}>
-                  <span className="font-press" style={{ fontSize: 11, letterSpacing: ".5px", color: selectedRow?.accent ?? "#e8920f" }}>{selectedRow?.name ?? "WAITING"}</span>
-                  <span className="font-press" style={{ fontSize: 12, color: (selectedRow?.pnlBps ?? 0) >= 0 ? "#3ee07f" : "#ff7a7a" }}>{formatPnl(selectedRow?.pnlBps ?? 0)}</span>
-                </div>
-                <img src="/platform.png" alt="" style={{ width: "100%", height: "auto", imageRendering: "pixelated", filter: "drop-shadow(0 10px 8px rgba(30,15,60,.4))" }} />
-                <img src={selectedRow?.sprite ?? "/blitz.png"} alt="Selected Agent" style={{ position: "absolute", left: "50%", bottom: "46%", width: "46%", height: "auto", imageRendering: "pixelated", filter: "drop-shadow(0 6px 4px rgba(20,10,50,.35))", animation: "bob-center 2.8s ease-in-out infinite" }} />
-              </div>
-
-              <div style={{ position: "absolute", width: "22%", right: "15%", bottom: "30%" }}>
-                <div style={{ position: "absolute", left: "50%", transform: "translateX(-50%)", bottom: "92%", display: "flex", flexDirection: "column", alignItems: "center", gap: 3, background: "rgba(36,24,70,.86)", border: "3px solid #fff", borderRadius: 11, padding: "7px 14px", whiteSpace: "nowrap", boxShadow: "0 4px 0 rgba(20,10,50,.4)" }}>
-                  <span className="font-press" style={{ fontSize: 11, letterSpacing: ".5px", color: "#e2479a" }}>
-                    {currentRound ? `${participantCount} AGENTS` : "SETTLED"}
-                  </span>
-                  <span className="font-press" style={{ fontSize: 12, color: "#ffe27a" }}>
-                    {formatCompactNumber(prizePool)} mUSDC
-                  </span>
-                </div>
-                <img src="/platform.png" alt="" style={{ width: "100%", height: "auto", imageRendering: "pixelated", filter: "drop-shadow(0 10px 8px rgba(30,15,60,.4))" }} />
-                <img src={rows[1]?.sprite ?? "/nova.png"} alt="Arena Status" style={{ position: "absolute", left: "50%", bottom: "46%", width: "46%", height: "auto", imageRendering: "pixelated", filter: "drop-shadow(0 6px 4px rgba(20,10,50,.35))", animation: "bob-center 2.8s ease-in-out infinite", animationDelay: ".3s" }} />
-              </div>
+              {ARENA_SLOTS.map((slot, slotIndex) => {
+                const row = rows[slotIndex] ?? null;
+                const isSelected = Boolean(row && row.agentId === selectedAgentId);
+                return (
+                  <div
+                    key={slotIndex}
+                    onClick={() => row && setSelectedAgentId(row.agentId)}
+                    style={{
+                      position: "absolute",
+                      left: slot.left,
+                      bottom: slot.bottom,
+                      transform: "translateX(-50%)",
+                      width: "10%",
+                      display: "flex",
+                      flexDirection: "column",
+                      alignItems: "center",
+                      cursor: row ? "pointer" : "default",
+                      zIndex: slot.z,
+                    }}
+                  >
+                    {row && (
+                      <div style={{
+                        background: "rgba(36,24,70,.9)",
+                        border: `2px solid ${isSelected ? row.accent : "rgba(255,255,255,.65)"}`,
+                        borderRadius: 5,
+                        padding: "2px 4px",
+                        marginBottom: 2,
+                        width: "100%",
+                        boxShadow: isSelected ? `0 0 8px ${row.accent}aa` : "0 2px 3px rgba(20,10,50,.5)",
+                      }}>
+                        <div className="font-press" style={{ fontSize: 6, color: row.accent, textAlign: "center", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                          #{row.rank} {row.name}
+                        </div>
+                        <div className="font-press" style={{ fontSize: 6, color: row.pnlBps >= 0 ? "#3ee07f" : "#ff7a7a", textAlign: "center" }}>
+                          {formatPnl(row.pnlBps)}
+                        </div>
+                      </div>
+                    )}
+                    {row && (
+                      <img
+                        src={row.sprite}
+                        alt={row.name}
+                        style={{
+                          width: "60%",
+                          imageRendering: "pixelated",
+                          filter: `drop-shadow(0 3px 2px rgba(20,10,50,.4))${isSelected ? " brightness(1.2)" : ""}`,
+                          animation: `bob ${2.3 + (slotIndex % 5) * 0.22}s ease-in-out infinite`,
+                          animationDelay: `${(slotIndex * 0.15) % 1}s`,
+                          position: "relative",
+                          zIndex: 2,
+                        }}
+                      />
+                    )}
+                    <img
+                      src="/platform.png"
+                      alt=""
+                      style={{
+                        width: "100%",
+                        imageRendering: "pixelated",
+                        filter: "drop-shadow(0 4px 5px rgba(30,15,60,.4))",
+                        marginTop: row ? -20 : 0,
+                        opacity: row ? 1 : 0.55,
+                        position: "relative",
+                        zIndex: 1,
+                      }}
+                    />
+                  </div>
+                );
+              })}
             </div>
 
             <Panel title="LEADERBOARD">
